@@ -6,7 +6,22 @@ namespace MiniJavaCompiler
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            var lexical = new LexicalAnalyzer();
+
+            lexical.GetNextToken();
+            Console.WriteLine(lexical.Token);
+
+            lexical.GetNextToken();
+            Console.WriteLine(lexical.Token);
+
+            lexical.GetNextToken();
+            Console.WriteLine(lexical.Token);
+
+            lexical.GetNextToken();
+            Console.WriteLine(lexical.Token);
+
+            lexical.GetNextToken();
+            Console.WriteLine(lexical.Token);
         }
     }
 }

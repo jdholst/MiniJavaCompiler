@@ -694,11 +694,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\jaked\\source\\repos\\MiniJavaCompiler\\MiniJavaCompiler\\MiniJavaCompiler.csproj",
+      "projectUniqueName": "C:\\Users\\jaked\\git\\repos\\MiniJavaCompiler\\MiniJavaCompiler\\MiniJavaCompiler\\MiniJavaCompiler.csproj",
       "projectName": "MiniJavaCompiler",
-      "projectPath": "C:\\Users\\jaked\\source\\repos\\MiniJavaCompiler\\MiniJavaCompiler\\MiniJavaCompiler.csproj",
+      "projectPath": "C:\\Users\\jaked\\git\\repos\\MiniJavaCompiler\\MiniJavaCompiler\\MiniJavaCompiler\\MiniJavaCompiler.csproj",
       "packagesPath": "C:\\Users\\jaked\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\jaked\\source\\repos\\MiniJavaCompiler\\MiniJavaCompiler\\obj\\",
+      "outputPath": "C:\\Users\\jaked\\git\\repos\\MiniJavaCompiler\\MiniJavaCompiler\\MiniJavaCompiler\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"

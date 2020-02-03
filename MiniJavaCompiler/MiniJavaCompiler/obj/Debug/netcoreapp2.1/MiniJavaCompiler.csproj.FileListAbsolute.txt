@@ -1,0 +1,11 @@
+C:\Users\jaked\git\repos\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\bin\Debug\netcoreapp2.1\MiniJavaCompiler.deps.json
+C:\Users\jaked\git\repos\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\bin\Debug\netcoreapp2.1\MiniJavaCompiler.runtimeconfig.json
+C:\Users\jaked\git\repos\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\bin\Debug\netcoreapp2.1\MiniJavaCompiler.runtimeconfig.dev.json
+C:\Users\jaked\git\repos\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\bin\Debug\netcoreapp2.1\MiniJavaCompiler.dll
+C:\Users\jaked\git\repos\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\bin\Debug\netcoreapp2.1\MiniJavaCompiler.pdb
+C:\Users\jaked\git\repos\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\obj\Debug\netcoreapp2.1\MiniJavaCompiler.csprojAssemblyReference.cache
+C:\Users\jaked\git\repos\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\obj\Debug\netcoreapp2.1\MiniJavaCompiler.csproj.CoreCompileInputs.cache
+C:\Users\jaked\git\repos\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\obj\Debug\netcoreapp2.1\MiniJavaCompiler.AssemblyInfoInputs.cache
+C:\Users\jaked\git\repos\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\obj\Debug\netcoreapp2.1\MiniJavaCompiler.AssemblyInfo.cs
+C:\Users\jaked\git\repos\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\obj\Debug\netcoreapp2.1\MiniJavaCompiler.dll
+C:\Users\jaked\git\repos\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\obj\Debug\netcoreapp2.1\MiniJavaCompiler.pdb
