@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -55,11 +56,9 @@ namespace MiniJavaCompiler
 
         private string lexeme;
         private char ch = ' ';
-        private int chIndex = 0;
-        private int lineNo = 0;
 
-        private string[] program;
-        private bool isEof = false;
+        private StreamReader programReader;
+        private bool eof = false;
 
         // token lookup table
         private readonly Dictionary<string, Symbol> tokenSymbols =
@@ -105,14 +104,14 @@ namespace MiniJavaCompiler
                 { "\"", Symbol.quotet }
             };
 
-        public LexicalAnalyzer(string[] program)
+        public LexicalAnalyzer(string programPath)
         {
-            this.program = program;
+            this.programReader = File.OpenText(programPath);
         }
 
         public void GetAllTokensAndDisplay()
         {
-            while (lineNo < program.Length)
+            while (!eof)
             {
                 GetNextToken();
                 Console.WriteLine($"{lexeme}: {Token}");
@@ -126,17 +125,18 @@ namespace MiniJavaCompiler
             Literal = "";
             lexeme = "";
 
-            while (char.IsWhiteSpace(ch))
-                GetNextCh();
+            SkipWhiteSpaces();
 
             try
             {
-                if (!isEof)
+                if (!programReader.EndOfStream)
                 {
                     ProcessToken();
                 }
                 else
                 {
+                    programReader.Close(); // close file
+                    eof = true;
                     Token = Symbol.eoft;
                 }
             }
@@ -160,10 +160,18 @@ namespace MiniJavaCompiler
                 ProcessNumToken();
             }
             else if (
-                ch == '=' && (lexeme[0] == '>' || lexeme[0] == '<' || lexeme[0] == '='  || lexeme[0] == '!') // relop double token
-                || (ch == '&' || ch == '|') && (lexeme[0] == '&' || lexeme[0] == '|')) // addop/mulop double token
+                (lexeme[0] == '>' || lexeme[0] == '<' || lexeme[0] == '='  || lexeme[0] == '!') && ch == '=' // relop double token
+                || (lexeme[0] == '&' || lexeme[0] == '|') && (ch == '&' || ch == '|')) // addop/mulop double token
             {
                 ProcessDoubleToken();
+            }
+            else if (lexeme[0] == '/' && ch == '/')
+            {
+                ProcessSingleLineComment();
+            }
+            else if (lexeme[0] == '/' && ch == '*')
+            {
+                ProcessMultiLineComment();
             }
             else
             {
@@ -173,16 +181,16 @@ namespace MiniJavaCompiler
 
         private void ProcessWordToken()
         {
-            ReadRest(() => char.IsLetterOrDigit(ch) || ch == '_');
+            ReadUntil(() => char.IsLetterOrDigit(ch) || ch == '_');
 
             if (lexeme == "System" && ch == '.')
             {
                 ReadNextCh();
-                ReadRest(() => char.IsLetterOrDigit(ch));
+                ReadUntil(() => char.IsLetterOrDigit(ch));
                 if (lexeme == "System.out" && ch == '.')
                 {
                     ReadNextCh();
-                    ReadRest(() => char.IsLetterOrDigit(ch));
+                    ReadUntil(() => char.IsLetterOrDigit(ch));
                 }
             }
 
@@ -200,7 +208,7 @@ namespace MiniJavaCompiler
 
         private void ProcessNumToken()
         {
-            ReadRest(() => char.IsDigit(ch));
+            ReadUntil(() => char.IsDigit(ch));
             if (ch == '.')
             {
                 ReadDecimal();
@@ -218,7 +226,7 @@ namespace MiniJavaCompiler
             ReadToken();
             if (Token == Symbol.quotet)
             {
-
+                ReadLiteral();
             }
         }
 
@@ -228,21 +236,36 @@ namespace MiniJavaCompiler
             ReadToken();
         }
 
+        private void ProcessSingleLineComment()
+        {
+            programReader.ReadLine(); // read and ignore
+            GetNextCh();
+            GetNextToken();
+        }
+
+        private void ProcessMultiLineComment()
+        {
+            while (!programReader.EndOfStream)
+            {
+                GetNextCh();
+                if (ch == '*')
+                {
+                    GetNextCh();
+                    if (ch == '/')
+                    {
+                        break;
+                    }
+                }
+            }
+            GetNextCh();
+            GetNextToken();
+        }
+
         private void GetNextCh()
         {
-            if (lineNo < program.Length && chIndex >= program[lineNo].Length)
+            if (!programReader.EndOfStream)
             {
-                chIndex = 0;
-                lineNo++;
-            }
-
-            if (lineNo < program.Length)
-            {
-                ch = program[lineNo][chIndex++];
-            }
-            else
-            {
-                isEof = true;
+                ch = (char)programReader.Read();
             }
         }
 
@@ -252,9 +275,9 @@ namespace MiniJavaCompiler
             GetNextCh();
         }
 
-        private void ReadRest(Func<bool> condition)
+        private void ReadUntil(Func<bool> condition)
         {
-            while (condition() && !isEof)
+            while (condition() && !programReader.EndOfStream)
             {
                 ReadNextCh();
             }
@@ -265,33 +288,44 @@ namespace MiniJavaCompiler
             ReadNextCh(); // read .
             if (!char.IsDigit(ch))
             {
-                throw new LexicalAnalyzerException($"Invalid num symbol {lexeme} at line {lineNo} col {chIndex}");
+                // must have numbers after decimal point
+                throw new LexicalAnalyzerException();
             }
-            ReadRest(() => char.IsDigit(ch));
+            ReadUntil(() => char.IsDigit(ch));
             ValueR = double.Parse(lexeme);
         }
 
         private void ReadLiteral()
         {
-            GetNextCh();
-            // ReadRest(() => )
+            while (ch != '"')
+            {
+                Literal += ch;
+                GetNextCh();
+            }
         }
 
         private void ReadToken()
         {
             try
             {
+                // check if token exist in lookup table
                 Token = tokenSymbols[lexeme];
             }
             catch (KeyNotFoundException)
             {
-                throw new LexicalAnalyzerException($"Lexeme {lexeme} not found in symbol lookup table");
+                throw new LexicalAnalyzerException();
             }
+        }
+
+        private void SkipWhiteSpaces()
+        {
+            while (char.IsWhiteSpace(ch))
+                GetNextCh();
         }
     }
 
+    // thrown after encountering invalid tokens
     public class LexicalAnalyzerException: Exception
     {
-        public LexicalAnalyzerException(string message): base(message) { }
     }
 }

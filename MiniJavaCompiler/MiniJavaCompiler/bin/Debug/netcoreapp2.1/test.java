@@ -1,5 +1,8 @@
-class factorial {
-  public static void main (String[] a) {
+class factorial { // comment
+  /* multi
+    line */
+  /* multi but single */
+  public static /*in between */ void main (String[] a) {
     System.out.println(new Fac().ComputeFac(10));
   }
 }

@@ -7,13 +7,7 @@ namespace MiniJavaCompiler
     {
         static void Main(string[] args)
         {
-            var fileInput = new string[] { };
-            if (args.Length <= 2)
-            {
-                fileInput = File.ReadAllLines(args[0]);
-            }
-
-            var lexical = new LexicalAnalyzer(fileInput);
+            var lexical = new LexicalAnalyzer(args[0]);
 
             lexical.GetAllTokensAndDisplay();
         }
