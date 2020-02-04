@@ -129,13 +129,21 @@ namespace MiniJavaCompiler
             while (char.IsWhiteSpace(ch))
                 GetNextCh();
 
-            if (!isEof)
+            try
             {
-                ProcessToken();
+                if (!isEof)
+                {
+                    ProcessToken();
+                }
+                else
+                {
+                    Token = Symbol.eoft;
+                }
             }
-            else
+            catch (LexicalAnalyzerException)
             {
-                Token = Symbol.eoft;
+                // if any error occurs set to unknown
+                Token = Symbol.unkownt;
             }
         }
 
