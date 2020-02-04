@@ -131,7 +131,6 @@ namespace MiniJavaCompiler
 
             if (!isEof)
             {
-
                 ProcessToken();
             }
             else
@@ -184,7 +183,7 @@ namespace MiniJavaCompiler
             {
                 ReadToken();
             }
-            catch (KeyNotFoundException)
+            catch (LexicalAnalyzerException)
             {
                 // is a idt if not res word
                 Token = Symbol.idt;
@@ -267,6 +266,7 @@ namespace MiniJavaCompiler
         private void ReadLiteral()
         {
             GetNextCh();
+            // ReadRest(() => )
         }
 
         private void ReadToken()
