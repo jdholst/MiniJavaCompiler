@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 
 namespace MiniJavaCompiler
 {
@@ -6,22 +7,15 @@ namespace MiniJavaCompiler
     {
         static void Main(string[] args)
         {
-            var lexical = new LexicalAnalyzer();
+            var fileInput = new string[] { };
+            if (args.Length <= 2)
+            {
+                fileInput = File.ReadAllLines(args[0]);
+            }
 
-            lexical.GetNextToken();
-            Console.WriteLine(lexical.Token);
+            var lexical = new LexicalAnalyzer(fileInput);
 
-            lexical.GetNextToken();
-            Console.WriteLine(lexical.Token);
-
-            lexical.GetNextToken();
-            Console.WriteLine(lexical.Token);
-
-            lexical.GetNextToken();
-            Console.WriteLine(lexical.Token);
-
-            lexical.GetNextToken();
-            Console.WriteLine(lexical.Token);
+            lexical.GetAllTokensAndDisplay();
         }
     }
 }

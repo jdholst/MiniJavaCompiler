@@ -34,38 +34,35 @@ namespace MiniJavaCompiler
         rparent,
         begint,
         endt,
-        arrayt,
+        rarrayt,
+        larrayt,
         commat,
         semit,
         periodt,
         quotet,
         idt,
         numt,
+        unkownt,
         eoft
     }
 
     public class LexicalAnalyzer
     {
-        public Symbol Token
-        {
-            get
-            {
-                return token;
-            }
-        }
+        public Symbol Token { get; private set; }
+        public string Literal { get; private set; }
+        public int Value { get; private set; }
+        public double ValueR { get; private set; }
 
-        private Symbol token;
         private string lexeme;
         private char ch = ' ';
         private int chIndex = 0;
         private int lineNo = 0;
-        private int value;
-        private double valueR;
 
         private string[] program;
+        private bool isEof = false;
 
         // token lookup table
-        private Dictionary<string, Symbol> tokenSymbols =
+        private readonly Dictionary<string, Symbol> tokenSymbols =
             new Dictionary<string, Symbol>
             {
                 { "class", Symbol.classt },
@@ -78,8 +75,8 @@ namespace MiniJavaCompiler
                 { "int", Symbol.intt },
                 { "else", Symbol.elset },
                 { "while", Symbol.whilet  },
-                { "printt", Symbol.printt },
-                { "lengtht", Symbol.lengtht },
+                { "System.out.println", Symbol.printt },
+                { "length", Symbol.lengtht },
                 { "true", Symbol.truet },
                 { "false", Symbol.falset },
                 { "this", Symbol.thist },
@@ -100,29 +97,47 @@ namespace MiniJavaCompiler
                 { ")", Symbol.rparent },
                 { "{", Symbol.begint },
                 { "}", Symbol.endt },
-                { "[", Symbol.arrayt },
-                { "]", Symbol.arrayt },
+                { "[", Symbol.larrayt },
+                { "]", Symbol.rarrayt },
                 { ",", Symbol.commat },
                 { ";", Symbol.semit },
                 { ".", Symbol.periodt },
                 { "\"", Symbol.quotet }
             };
 
-        public LexicalAnalyzer()
+        public LexicalAnalyzer(string[] program)
         {
-            program = new string[] 
+            this.program = program;
+        }
+
+        public void GetAllTokensAndDisplay()
+        {
+            while (lineNo < program.Length)
             {
-                "class LexicalAnalyzer {",
-                "};"
-            };
+                GetNextToken();
+                Console.WriteLine($"{lexeme}: {Token}");
+            }
         }
 
         public void GetNextToken()
         {
+            Value = 0;
+            ValueR = 0;
+            Literal = "";
             lexeme = "";
+
             while (char.IsWhiteSpace(ch))
                 GetNextCh();
-            ProcessToken();
+
+            if (!isEof)
+            {
+
+                ProcessToken();
+            }
+            else
+            {
+                Token = Symbol.eoft;
+            }
         }
 
         private void ProcessToken()
@@ -153,6 +168,17 @@ namespace MiniJavaCompiler
         {
             ReadRest(() => char.IsLetterOrDigit(ch) || ch == '_');
 
+            if (lexeme == "System" && ch == '.')
+            {
+                ReadNextCh();
+                ReadRest(() => char.IsLetterOrDigit(ch));
+                if (lexeme == "System.out" && ch == '.')
+                {
+                    ReadNextCh();
+                    ReadRest(() => char.IsLetterOrDigit(ch));
+                }
+            }
+
             // attempt to read as res word
             try
             {
@@ -161,7 +187,7 @@ namespace MiniJavaCompiler
             catch (KeyNotFoundException)
             {
                 // is a idt if not res word
-                token = Symbol.idt;
+                Token = Symbol.idt;
             }
         }
 
@@ -170,26 +196,23 @@ namespace MiniJavaCompiler
             ReadRest(() => char.IsDigit(ch));
             if (ch == '.')
             {
-                lexeme += ch;
-                GetNextCh();
-                if (!char.IsDigit(ch))
-                {
-                    throw new Exception($"Invalid num symbol {lexeme} at line {lineNo} col {chIndex}");
-                }
-                ReadRest(() => char.IsDigit(ch));
-                valueR = double.Parse(lexeme);
+                ReadDecimal();
             }
             else
             {
-                value = int.Parse(lexeme);
+                Value = int.Parse(lexeme);
             }
 
-            token = Symbol.numt;
+            Token = Symbol.numt;
         }
 
         private void ProcessSingleToken()
         {
             ReadToken();
+            if (Token == Symbol.quotet)
+            {
+
+            }
         }
 
         private void ProcessDoubleToken()
@@ -200,14 +223,19 @@ namespace MiniJavaCompiler
 
         private void GetNextCh()
         {
-            if (lineNo >= program.Length)
+            if (lineNo < program.Length && chIndex >= program[lineNo].Length)
             {
-                if (chIndex >= program[lineNo].Length)
-                {
-                    chIndex = 0;
-                    lineNo++;
-                }
+                chIndex = 0;
+                lineNo++;
+            }
+
+            if (lineNo < program.Length)
+            {
                 ch = program[lineNo][chIndex++];
+            }
+            else
+            {
+                isEof = true;
             }
         }
 
@@ -219,22 +247,43 @@ namespace MiniJavaCompiler
 
         private void ReadRest(Func<bool> condition)
         {
-            do
+            while (condition() && !isEof)
             {
                 ReadNextCh();
-            } while (condition());
+            }
+        }
+
+        private void ReadDecimal()
+        {
+            ReadNextCh(); // read .
+            if (!char.IsDigit(ch))
+            {
+                throw new LexicalAnalyzerException($"Invalid num symbol {lexeme} at line {lineNo} col {chIndex}");
+            }
+            ReadRest(() => char.IsDigit(ch));
+            ValueR = double.Parse(lexeme);
+        }
+
+        private void ReadLiteral()
+        {
+            GetNextCh();
         }
 
         private void ReadToken()
         {
             try
             {
-                token = tokenSymbols[lexeme];
+                Token = tokenSymbols[lexeme];
             }
             catch (KeyNotFoundException)
             {
-                throw new KeyNotFoundException($"Symbol {lexeme} not found in lookup table");
+                throw new LexicalAnalyzerException($"Lexeme {lexeme} not found in symbol lookup table");
             }
         }
+    }
+
+    public class LexicalAnalyzerException: Exception
+    {
+        public LexicalAnalyzerException(string message): base(message) { }
     }
 }

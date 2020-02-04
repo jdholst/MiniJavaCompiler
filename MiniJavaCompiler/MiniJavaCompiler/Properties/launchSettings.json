@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "MiniJavaCompiler": {
+      "commandName": "Project",
+      "commandLineArgs": "test.java"
+    }
+  }
+}
