@@ -4,6 +4,7 @@ class factorial { // comment
   /* multi but single */
   public static /*in between */ void main (String[] a) {
     System.out.println(new Fac().ComputeFac(10));
+    System.out.println("this is a test");
   }
 }
 class Fac{

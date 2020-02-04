@@ -57,6 +57,8 @@ namespace MiniJavaCompiler
         private string lexeme;
         private char ch = ' ';
 
+        private bool endOfLiteral = false;
+
         private StreamReader programReader;
         private bool eof = false;
 
@@ -114,7 +116,17 @@ namespace MiniJavaCompiler
             while (!eof)
             {
                 GetNextToken();
-                Console.WriteLine($"{lexeme}: {Token}");
+                Console.Write($"{lexeme}: {Token}");
+
+                if (Token == Symbol.numt)
+                {
+                    Console.Write($" with Value: {Value} ValueR: {ValueR}");
+                }
+                else if (Token == Symbol.quotet && endOfLiteral)
+                {
+                    Console.Write($" with Literal: {Literal}");
+                }
+                Console.WriteLine();
             }
         }
 
@@ -226,7 +238,14 @@ namespace MiniJavaCompiler
             ReadToken();
             if (Token == Symbol.quotet)
             {
-                ReadLiteral();
+                if (!endOfLiteral)
+                {
+                    ReadLiteral();
+                }
+                else
+                {
+                    endOfLiteral = false;
+                }
             }
         }
 
@@ -302,6 +321,7 @@ namespace MiniJavaCompiler
                 Literal += ch;
                 GetNextCh();
             }
+            endOfLiteral = true;
         }
 
         private void ReadToken()
