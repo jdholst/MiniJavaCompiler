@@ -103,12 +103,13 @@ namespace MiniJavaCompiler
                 { ",", Symbol.commat },
                 { ";", Symbol.semit },
                 { ".", Symbol.periodt },
-                { "\"", Symbol.quotet }
+                { "\"", Symbol.quotet },
+                { "\0", Symbol.eoft }
             };
 
         public LexicalAnalyzer(string programPath)
         {
-            this.programReader = File.OpenText(programPath);
+            programReader = File.OpenText(programPath);
         }
 
         public void GetAllTokensAndDisplay()
@@ -117,7 +118,6 @@ namespace MiniJavaCompiler
             {
                 GetNextToken();
                 Console.Write($"{lexeme}: {Token}");
-
                 if (Token == Symbol.numt)
                 {
                     Console.Write($" with Value: {Value} ValueR: {ValueR}");
@@ -141,15 +141,10 @@ namespace MiniJavaCompiler
 
             try
             {
-                if (!programReader.EndOfStream)
-                {
-                    ProcessToken();
-                }
-                else
+                ProcessToken();
+                if (eof)
                 {
                     programReader.Close(); // close file
-                    eof = true;
-                    Token = Symbol.eoft;
                 }
             }
             catch (LexicalAnalyzerException)
@@ -184,6 +179,10 @@ namespace MiniJavaCompiler
             else if (lexeme[0] == '/' && ch == '*')
             {
                 ProcessMultiLineComment();
+            }
+            else if (lexeme[0] == '\0')
+            {
+                ProcessEOF();
             }
             else
             {
@@ -280,11 +279,21 @@ namespace MiniJavaCompiler
             GetNextToken();
         }
 
+        private void ProcessEOF()
+        {
+            Token = Symbol.eoft;
+            eof = true;
+        }
+
         private void GetNextCh()
         {
             if (!programReader.EndOfStream)
             {
                 ch = (char)programReader.Read();
+            }
+            else
+            {
+                ch = '\0';
             }
         }
 
@@ -296,7 +305,7 @@ namespace MiniJavaCompiler
 
         private void ReadUntil(Func<bool> condition)
         {
-            while (condition() && !programReader.EndOfStream)
+            while (condition())
             {
                 ReadNextCh();
             }
