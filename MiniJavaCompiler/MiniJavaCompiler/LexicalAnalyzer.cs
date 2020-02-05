@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
-using System.Text.RegularExpressions;
 
 namespace MiniJavaCompiler
 {
@@ -68,12 +66,14 @@ namespace MiniJavaCompiler
             {
                 { "class", Symbol.classt },
                 { "public", Symbol.publict },
+                { "static", Symbol.statict },
                 { "void", Symbol.voidt },
                 { "main", Symbol.maint },
                 { "String", Symbol.stringt },
                 { "extends", Symbol.extendst },
                 { "return", Symbol.returnt },
                 { "int", Symbol.intt },
+                { "if", Symbol.ift },
                 { "else", Symbol.elset },
                 { "while", Symbol.whilet  },
                 { "System.out.println", Symbol.printt },
