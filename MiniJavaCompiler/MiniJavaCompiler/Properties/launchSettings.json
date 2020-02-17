@@ -2,7 +2,7 @@
   "profiles": {
     "MiniJavaCompiler": {
       "commandName": "Project",
-      "commandLineArgs": "test4.java"
+      "commandLineArgs": "tokens6.java"
     }
   }
 }

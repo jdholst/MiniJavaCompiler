@@ -8,6 +8,7 @@ namespace MiniJavaCompiler
     {
         classt,
         publict,
+        finalt,
         statict,
         voidt,
         maint,
@@ -66,6 +67,7 @@ namespace MiniJavaCompiler
             {
                 { "class", Symbol.classt },
                 { "public", Symbol.publict },
+                { "final", Symbol.finalt },
                 { "static", Symbol.statict },
                 { "void", Symbol.voidt },
                 { "main", Symbol.maint },
@@ -205,15 +207,22 @@ namespace MiniJavaCompiler
                 }
             }
 
-            // attempt to read as res word
-            try
+            if (lexeme.Length <= 31)
             {
-                ReadToken();
+                // attempt to read as res word
+                try
+                {
+                    ReadToken();
+                }
+                catch (LexicalAnalyzerException)
+                {
+                    // is a idt if not res word and is 31 characters or less
+                    Token = Symbol.idt;
+                } 
             }
-            catch (LexicalAnalyzerException)
+            else
             {
-                // is a idt if not res word
-                Token = Symbol.idt;
+                Token = Symbol.unkownt;
             }
         }
 
@@ -329,6 +338,12 @@ namespace MiniJavaCompiler
             {
                 Literal += ch;
                 GetNextCh();
+
+                if (ch == '\n')
+                {
+                    Token = Symbol.unkownt;
+                    break;
+                }
             }
             endOfLiteral = true;
         }

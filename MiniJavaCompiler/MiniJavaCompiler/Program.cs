@@ -7,6 +7,9 @@ namespace MiniJavaCompiler
     {
         static void Main(string[] args)
         {
+            if (args.Length < 1)
+                Console.WriteLine("Error: Missing program file-name arugment");
+
             var lexical = new LexicalAnalyzer(args[0]);
 
             lexical.GetAllTokensAndDisplay();
