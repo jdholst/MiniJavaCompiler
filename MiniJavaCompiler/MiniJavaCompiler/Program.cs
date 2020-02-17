@@ -12,7 +12,7 @@ namespace MiniJavaCompiler
 
             var lexical = new LexicalAnalyzer(args[0]);
 
-            lexical.GetAllTokensAndDisplay();
+            Parser.Parse(lexical);
         }
     }
 }

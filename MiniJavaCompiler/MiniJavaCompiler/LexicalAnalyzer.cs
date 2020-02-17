@@ -48,7 +48,7 @@ namespace MiniJavaCompiler
 
     public class LexicalAnalyzer
     {
-        public Symbol Token { get; private set; }
+        public Symbol Token { get; private set; } = Symbol.unkownt;
         public string Literal { get; private set; }
         public int Value { get; private set; }
         public double ValueR { get; private set; }
@@ -147,13 +147,14 @@ namespace MiniJavaCompiler
                 if (eof)
                 {
                     programReader.Close(); // close file
-                }
+                } 
             }
             catch (LexicalAnalyzerException)
             {
                 // if any error occurs set to unknown
                 Token = Symbol.unkownt;
             }
+            catch (ObjectDisposedException) { }
         }
 
         private void ProcessToken()
