@@ -2,7 +2,7 @@
   "profiles": {
     "MiniJavaCompiler": {
       "commandName": "Project",
-      "commandLineArgs": "basic.java"
+      "commandLineArgs": "t32.java"
     }
   }
 }

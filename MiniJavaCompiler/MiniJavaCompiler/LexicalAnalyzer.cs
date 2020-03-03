@@ -52,6 +52,7 @@ namespace MiniJavaCompiler
         public string Literal { get; private set; }
         public int Value { get; private set; }
         public double ValueR { get; private set; }
+        public int LineNo { get; private set; } = 1;
 
         private string lexeme;
         private char ch = ' ';
@@ -75,6 +76,7 @@ namespace MiniJavaCompiler
                 { "extends", Symbol.extendst },
                 { "return", Symbol.returnt },
                 { "int", Symbol.intt },
+                { "boolean", Symbol.booleant },
                 { "if", Symbol.ift },
                 { "else", Symbol.elset },
                 { "while", Symbol.whilet  },
@@ -267,6 +269,7 @@ namespace MiniJavaCompiler
         private void ProcessSingleLineComment()
         {
             programReader.ReadLine(); // read and ignore
+            LineNo++;
             GetNextCh();
             GetNextToken();
         }
@@ -300,6 +303,8 @@ namespace MiniJavaCompiler
             if (!programReader.EndOfStream)
             {
                 ch = (char)programReader.Read();
+                if (ch == '\n')
+                    LineNo++;
             }
             else
             {

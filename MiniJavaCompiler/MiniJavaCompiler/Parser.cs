@@ -32,7 +32,7 @@ namespace MiniJavaCompiler
                     }
 
                     message += $"but read {ex.Actual}";
-                    Console.WriteLine($"Error: {message}");
+                    Console.WriteLine($"Error on line {ex.LineNo}: {message}");
                 }
             }
         }
@@ -192,7 +192,7 @@ namespace MiniJavaCompiler
                 }
             }
 
-            if (!matched) throw new ParseException(desired, analyzer.Token);
+            if (!matched) throw new ParseException(desired, analyzer.Token, analyzer.LineNo);
         }
     }
 
@@ -200,10 +200,12 @@ namespace MiniJavaCompiler
     {
         public Symbol[] Expected { get; private set; }
         public Symbol Actual { get; private set; }
-        public ParseException(Symbol[] expected, Symbol actual)
+        public int LineNo { get; private set; }
+        public ParseException(Symbol[] expected, Symbol actual, int lineNo)
         {
             Expected = expected;
             Actual = actual;
+            LineNo = lineNo;
         }
     }
 }
