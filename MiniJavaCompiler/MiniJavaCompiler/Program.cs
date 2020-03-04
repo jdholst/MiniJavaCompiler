@@ -7,12 +7,11 @@ namespace MiniJavaCompiler
     {
         static void Main(string[] args)
         {
-            if (args.Length < 1)
-                Console.WriteLine("Error: Missing program file-name arugment");
+            var table = new SymbolTable(211);
 
-            var lexical = new LexicalAnalyzer(args[0]);
-
-            Parser.Parse(lexical);
+            table.Insert("int", Symbol.intt, 0);
+            table.Insert("boolean", Symbol.booleant, 1);
+            Console.WriteLine(table.Lookup("boolean"));
         }
     }
 }
