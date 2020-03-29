@@ -5,14 +5,12 @@ using System.Text;
 namespace MiniJavaCompiler
 {
     public enum VarType { intType, floatType, booleanType, voidType };
-    public enum EntryType { constEntry, varEntry, methodEntry, classEntry };
 
     public class TableEntry
     {
         public Symbol Token { get; set; }
         public string Lexeme { get; set; }
         public int Depth { get; set; }
-        public EntryType TypeOfEntry { get; set; }
     }
 
     public class VarEntry: TableEntry
@@ -31,7 +29,8 @@ namespace MiniJavaCompiler
 
     public class MethodEntry: TableEntry
     {
-        public int SizeOfLocals { get; set; }
+        public int SizeOfLocals { get; set; } = 0;
+        public int SizeOfParameters { get; set; } = 0;
         public int NumberOfParameters
         {
             get
@@ -61,14 +60,18 @@ namespace MiniJavaCompiler
             this.size = size;
         }
 
-        public void Insert<T>(string lexeme, Symbol token, int depth) where T: TableEntry, new()
+        public void Insert<TEntry>(string lexeme, Symbol token, int depth) where TEntry: TableEntry, new()
         {
+            var duplicate = Lookup(lexeme);
+            if (duplicate != null && duplicate.Depth == depth)
+                throw new DuplicateLexemeException(lexeme);
+
             var hashAddress = Hash(lexeme);
 
             if (table[hashAddress] == null)
                 table[hashAddress] = new LinkedList<TableEntry>();
 
-            table[hashAddress].AddFirst(new T
+            table[hashAddress].AddFirst(new TEntry
             {
                 Lexeme = lexeme,
                 Token = token,
@@ -76,7 +79,7 @@ namespace MiniJavaCompiler
             });
         }
 
-        public T Lookup<T>(string lexeme) where T: TableEntry
+        public TEntry Lookup<TEntry>(string lexeme) where TEntry: TableEntry
         {
             var hashAddress = Hash(lexeme);
             var node = table[hashAddress]?.First;
@@ -85,13 +88,18 @@ namespace MiniJavaCompiler
             {
                 if (node.Value.Lexeme == lexeme)
                 {
-                    return node.Value as T;
+                    return node.Value as TEntry;
                 }
 
                 node = node.Next;
             }
 
             return null;
+        }
+
+        public TableEntry Lookup(string lexeme)
+        {
+            return Lookup<TableEntry>(lexeme);
         }
 
         public void DeleteDepth(int depth)
@@ -122,7 +130,7 @@ namespace MiniJavaCompiler
                 {
                     if (node.Value.Depth == depth)
                     {
-                        Console.WriteLine(node.Value.Lexeme);
+                        Console.WriteLine($"{node.Value.Lexeme} at depth {node.Value.Depth} of type {node.Value.GetType().Name}");
                     }
 
                     node = node.Next;
@@ -148,6 +156,16 @@ namespace MiniJavaCompiler
                 total += size;
 
             return (int)total;
+        }
+    }
+
+    public class DuplicateLexemeException: Exception
+    {
+        public string Lexeme { get; private set; }
+
+        public DuplicateLexemeException(string lexeme): base()
+        {
+            Lexeme = lexeme;
         }
     }
 }
