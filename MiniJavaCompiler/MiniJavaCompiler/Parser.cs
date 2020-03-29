@@ -7,11 +7,15 @@ namespace MiniJavaCompiler
     public static class Parser
     {
         private static LexicalAnalyzer analyzer;
+        private static SymbolTable symTable;
 
-        public static void Parse(LexicalAnalyzer lexicalAnalyzer)
+        private static int currentOffset = 0;
+
+        public static SymbolTable Parse(LexicalAnalyzer lexicalAnalyzer)
         {
             try
             {
+                symTable = new SymbolTable(32);
                 analyzer = lexicalAnalyzer;
                 analyzer.GetNextToken(); // prime the parser
                 Prog();
@@ -35,6 +39,8 @@ namespace MiniJavaCompiler
                     Console.WriteLine($"Error on line {ex.LineNo}: {message}");
                 }
             }
+
+            return symTable;
         }
 
         private static void Prog()
@@ -78,6 +84,11 @@ namespace MiniJavaCompiler
         private static void ClassDecl()
         {
             Match(Symbol.classt);
+
+            symTable.Insert<ClassEntry>(analyzer.Lexeme, analyzer.Token, 0);
+            var entry = symTable.Lookup<ClassEntry>(analyzer.Lexeme); //.Value;
+            entry.TypeOfEntry = EntryType.classEntry;
+
             Match(Symbol.idt);
 
             if (analyzer.Token == Symbol.extendst)
@@ -87,85 +98,161 @@ namespace MiniJavaCompiler
             }
 
             Match(Symbol.begint);
-            VarDecl();
-            MethodDecl();
+            VarDecl(entry);
+
+            entry.SizeOfLocals = currentOffset;
+            currentOffset = 0;
+
+            MethodDecl(entry);
             Match(Symbol.endt);
         }
 
-        private static void VarDecl()
+        private static void VarDecl(ClassEntry parentEntry = null)
         {
-            if (analyzer.Token == Symbol.finalt)
+            switch (analyzer.Token)
             {
-                Match(Symbol.finalt);
-                Type();
-                Match(Symbol.idt);
-                Match(Symbol.assignopt);
-                Match(Symbol.numt);
-                Match(Symbol.semit);
-                VarDecl();
-            }
-            else if (analyzer.Token == Symbol.intt || analyzer.Token == Symbol.booleant)
-            {
-                Type();
-                IdentifierList();
-                Match(Symbol.semit);
-                VarDecl();
+                case Symbol.finalt:
+                    Match(Symbol.finalt);
+                    var (constType, constSize) = Type();
+                    var varName = analyzer.Lexeme;
+                    var varToken = analyzer.Token;
+                    parentEntry?.VariableNames.Add(varName);
+
+                    Match(Symbol.idt);
+                    Match(Symbol.assignopt);
+
+                    if (constType == VarType.intType)
+                    {
+                        symTable.Insert<ConstEntry<int>>(varName, varToken, 0);
+                        var intEntry = symTable.Lookup<ConstEntry<int>>(analyzer.Lexeme); //.Value;
+                        intEntry.TypeOfEntry = EntryType.constEntry;
+                        intEntry.TypeOfConstant = constType;
+                        intEntry.Value = int.Parse(analyzer.Lexeme);
+                        intEntry.Offset = currentOffset;
+                    }
+                    else if (constType == VarType.floatType)
+                    {
+                        symTable.Insert<ConstEntry<int>>(varName, varToken, 0);
+                        var floatEntry = symTable.Lookup<ConstEntry<float>>(analyzer.Lexeme); //.Value;
+                        floatEntry.TypeOfEntry = EntryType.constEntry;
+                        floatEntry.TypeOfConstant = constType;
+                        floatEntry.Value = float.Parse(analyzer.Lexeme);
+                        floatEntry.Offset = currentOffset;
+                    }
+                    currentOffset += constSize;
+
+                    Match(Symbol.numt);
+                    Match(Symbol.semit);
+                    VarDecl();
+                    break;
+                case Symbol.intt:
+                case Symbol.booleant:
+                    var (varType, varSize) = Type();
+
+                    IdentifierList(varType, varSize);
+                    Match(Symbol.semit);
+                    VarDecl();
+                    break;
             }
         }
 
-        private static void IdentifierList()
+        private static void IdentifierList(VarType type, int size)
         {
+            symTable.Insert<VarEntry>(analyzer.Lexeme, analyzer.Token, 0);
+            var varEntry = symTable.Lookup<VarEntry>(analyzer.Lexeme); //.Value;
+            varEntry.TypeOfVariable = type;
+            varEntry.Size = size;
+            varEntry.Offset = currentOffset;
+            currentOffset += size;
+
             Match(Symbol.idt);
             if (analyzer.Token == Symbol.commat)
             {
                 Match(Symbol.commat);
-                IdentifierList();
+                IdentifierList(type, size);
             }
         }
 
-        private static void Type()
+        private static (VarType, int) Type()
         {
-            Match(Symbol.intt, Symbol.booleant, Symbol.voidt);
+            VarType type;
+            int size = 0;
+
+            switch (analyzer.Token)
+            {
+                case Symbol.intt:
+                    Match(Symbol.intt);
+                    type = VarType.intType;
+                    size = 2;
+                    break;
+                case Symbol.booleant:
+                    Match(Symbol.booleant);
+                    type = VarType.booleanType;
+                    size = 1;
+                    break;
+                case Symbol.voidt:
+                    Match(Symbol.voidt);
+                    type = VarType.voidType;
+                    break;
+                default:
+                    throw new ParseException(analyzer.Token, analyzer.LineNo, Symbol.intt, Symbol.booleant, Symbol.voidt);
+            }
+
+            return (type, size);
         }
 
-        private static void MethodDecl()
+        private static void MethodDecl(ClassEntry parentEntry)
         {
             if (analyzer.Token == Symbol.publict)
             {
                 Match(Symbol.publict);
-                Type();
+                var (type, _) = Type();
+
+                symTable.Insert<MethodEntry>(analyzer.Lexeme, analyzer.Token, 0);
+                var entry = symTable.Lookup<MethodEntry>(analyzer.Lexeme);// .Value;
+                entry.TypeOfEntry = EntryType.methodEntry;
+                entry.ReturnType = type;
+                parentEntry.MethodNames.Add(analyzer.Lexeme);
+
                 Match(Symbol.idt);
                 Match(Symbol.lparent);
-                FormalList();
+                FormalList(entry);
                 Match(Symbol.rparent);
                 Match(Symbol.begint);
                 VarDecl();
+
+                entry.SizeOfLocals = currentOffset;
+                currentOffset = 0;
+
                 SeqOfStatements();
                 Match(Symbol.returnt);
                 Expr();
                 Match(Symbol.semit);
-                Match(Symbol.endt); 
+                Match(Symbol.endt);
+                MethodDecl(parentEntry);
             }
         }
 
-        private static void FormalList()
+        private static void FormalList(MethodEntry entry)
         {
             if (analyzer.Token == Symbol.intt || analyzer.Token == Symbol.booleant)
             {
-                Type();
+                var (type, _) = Type();
+                entry.ParamList.Add(type);
                 Match(Symbol.idt);
-                FormalRest(); 
+                FormalRest(entry); 
             }
         }
 
-        private static void FormalRest()
+        private static void FormalRest(MethodEntry entry)
         {
             if (analyzer.Token == Symbol.commat)
             {
                 Match(Symbol.commat);
-                Type();
+                var (type, _) = Type();
+                entry.ParamList.Add(type);
                 Match(Symbol.idt);
-                FormalRest(); 
+                FormalRest(entry); 
             }
         }
 
@@ -179,20 +266,16 @@ namespace MiniJavaCompiler
             // empty
         }
 
-        private static void Match(params Symbol[] desired)
+        private static void Match(Symbol desired)
         {
-            bool matched = false;
-            foreach (var sym in desired)
+            if (analyzer.Token == desired)
             {
-                if (analyzer.Token == sym)
-                {
-                    analyzer.GetNextToken();
-                    matched = true;
-                    break;
-                }
+                analyzer.GetNextToken();
             }
-
-            if (!matched) throw new ParseException(desired, analyzer.Token, analyzer.LineNo);
+            else
+            {
+                throw new ParseException(analyzer.Token, analyzer.LineNo, desired);
+            }
         }
     }
 
@@ -201,7 +284,7 @@ namespace MiniJavaCompiler
         public Symbol[] Expected { get; private set; }
         public Symbol Actual { get; private set; }
         public int LineNo { get; private set; }
-        public ParseException(Symbol[] expected, Symbol actual, int lineNo)
+        public ParseException(Symbol actual, int lineNo, params Symbol[] expected)
         {
             Expected = expected;
             Actual = actual;

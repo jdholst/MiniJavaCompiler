@@ -7,11 +7,13 @@ namespace MiniJavaCompiler
     {
         static void Main(string[] args)
         {
-            var table = new SymbolTable(211);
+            var analyzer = new LexicalAnalyzer(args[0]);
+            var table = Parser.Parse(analyzer);
+            var entry = table.Lookup<MethodEntry>("sum");
+            Console.WriteLine(entry.TypeOfEntry);
 
-            table.Insert("int", Symbol.intt, 0);
-            table.Insert("boolean", Symbol.booleant, 1);
-            Console.WriteLine(table.Lookup("boolean"));
+            Console.WriteLine("Variable Names: ");
+            entry.ParamList.ForEach(name => Console.WriteLine(name));
         }
     }
 }

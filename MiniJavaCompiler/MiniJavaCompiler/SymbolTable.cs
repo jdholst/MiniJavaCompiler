@@ -29,39 +29,46 @@ namespace MiniJavaCompiler
         public TValue Value { get; set; }
     }
 
-    public class MethodEntr: TableEntry
+    public class MethodEntry: TableEntry
     {
         public int SizeOfLocals { get; set; }
-        public int NumberOfParameters { get; set; }
+        public int NumberOfParameters
+        {
+            get
+            {
+                return ParamList.Count;
+            }
+        }
         public VarType ReturnType { get; set; }
-        public List<VarType> ParamList { get; set; }
+        public List<VarType> ParamList { get; set; } = new List<VarType>();
     }
 
     public class ClassEntry: TableEntry
     {
         public int SizeOfLocals { get; set; }
-        public List<string> MethodNames { get; set; }
-        public List<string> VariableNames { get; set; }
+        public List<string> MethodNames { get; set; } = new List<string>();
+        public List<string> VariableNames { get; set; } = new List<string>();
     }
 
     public class SymbolTable
     {
-        private LinkedList<TableEntry>[] table;
-        private int size;
+        private readonly LinkedList<TableEntry>[] table;
+        private readonly int size;
 
         public SymbolTable(int size)
         {
             table = new LinkedList<TableEntry>[size];
-
             this.size = size;
         }
 
-        public void Insert(string lexeme, Symbol token, int depth)
+        public void Insert<T>(string lexeme, Symbol token, int depth) where T: TableEntry, new()
         {
             var hashAddress = Hash(lexeme);
 
-            table[hashAddress] = new LinkedList<TableEntry>();
-            table[hashAddress].AddFirst(new TableEntry
+            if (table[hashAddress] == null)
+                table[hashAddress] = new LinkedList<TableEntry>();
+
+            table[hashAddress].AddFirst(new T
             {
                 Lexeme = lexeme,
                 Token = token,
@@ -69,7 +76,7 @@ namespace MiniJavaCompiler
             });
         }
 
-        public TableEntry Lookup(string lexeme)
+        public T Lookup<T>(string lexeme) where T: TableEntry
         {
             var hashAddress = Hash(lexeme);
             var node = table[hashAddress]?.First;
@@ -78,7 +85,7 @@ namespace MiniJavaCompiler
             {
                 if (node.Value.Lexeme == lexeme)
                 {
-                    return node.Value;
+                    return node.Value as T;
                 }
 
                 node = node.Next;
@@ -123,7 +130,7 @@ namespace MiniJavaCompiler
             }
         }
 
-        // credit to person I stole from: https://www.geeksforgeeks.org/hash-function-for-string-data-in-c-sharp/
+        // credit: https://www.geeksforgeeks.org/hash-function-for-string-data-in-c-sharp/
         private int Hash(string lexeme)
         {
             long total = 0;

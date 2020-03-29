@@ -53,8 +53,8 @@ namespace MiniJavaCompiler
         public int Value { get; private set; }
         public double ValueR { get; private set; }
         public int LineNo { get; private set; } = 1;
+        public string Lexeme { get; private set; }
 
-        private string lexeme;
         private char ch = ' ';
 
         private bool endOfLiteral = false;
@@ -121,7 +121,7 @@ namespace MiniJavaCompiler
             while (!eof)
             {
                 GetNextToken();
-                Console.Write($"{lexeme}: {Token}");
+                Console.Write($"{Lexeme}: {Token}");
                 if (Token == Symbol.numt)
                 {
                     Console.Write($" with Value: {Value} ValueR: {ValueR}");
@@ -139,7 +139,7 @@ namespace MiniJavaCompiler
             Value = 0;
             ValueR = 0;
             Literal = "";
-            lexeme = "";
+            Lexeme = "";
 
             SkipWhiteSpaces();
 
@@ -163,29 +163,29 @@ namespace MiniJavaCompiler
         {
             ReadNextCh();
 
-            if (char.IsLetter(lexeme[0]))
+            if (char.IsLetter(Lexeme[0]))
             {
                 ProcessWordToken();
             }
-            else if (char.IsDigit(lexeme[0]))
+            else if (char.IsDigit(Lexeme[0]))
             {
                 ProcessNumToken();
             }
             else if (
-                (lexeme[0] == '>' || lexeme[0] == '<' || lexeme[0] == '='  || lexeme[0] == '!') && ch == '=' // relop double token
-                || (lexeme[0] == '&' || lexeme[0] == '|') && (ch == '&' || ch == '|')) // addop/mulop double token
+                (Lexeme[0] == '>' || Lexeme[0] == '<' || Lexeme[0] == '='  || Lexeme[0] == '!') && ch == '=' // relop double token
+                || (Lexeme[0] == '&' || Lexeme[0] == '|') && (ch == '&' || ch == '|')) // addop/mulop double token
             {
                 ProcessDoubleToken();
             }
-            else if (lexeme[0] == '/' && ch == '/')
+            else if (Lexeme[0] == '/' && ch == '/')
             {
                 ProcessSingleLineComment();
             }
-            else if (lexeme[0] == '/' && ch == '*')
+            else if (Lexeme[0] == '/' && ch == '*')
             {
                 ProcessMultiLineComment();
             }
-            else if (lexeme[0] == '\0')
+            else if (Lexeme[0] == '\0')
             {
                 ProcessEOF();
             }
@@ -199,18 +199,18 @@ namespace MiniJavaCompiler
         {
             ReadUntil(() => char.IsLetterOrDigit(ch) || ch == '_');
 
-            if (lexeme == "System" && ch == '.')
+            if (Lexeme == "System" && ch == '.')
             {
                 ReadNextCh();
                 ReadUntil(() => char.IsLetterOrDigit(ch));
-                if (lexeme == "System.out" && ch == '.')
+                if (Lexeme == "System.out" && ch == '.')
                 {
                     ReadNextCh();
                     ReadUntil(() => char.IsLetterOrDigit(ch));
                 }
             }
 
-            if (lexeme.Length <= 31)
+            if (Lexeme.Length <= 31)
             {
                 // attempt to read as res word
                 try
@@ -238,7 +238,7 @@ namespace MiniJavaCompiler
             }
             else
             {
-                Value = int.Parse(lexeme);
+                Value = int.Parse(Lexeme);
             }
 
             Token = Symbol.numt;
@@ -314,7 +314,7 @@ namespace MiniJavaCompiler
 
         private void ReadNextCh()
         {
-            lexeme += ch;
+            Lexeme += ch;
             GetNextCh();
         }
 
@@ -335,7 +335,7 @@ namespace MiniJavaCompiler
                 throw new LexicalAnalyzerException();
             }
             ReadUntil(() => char.IsDigit(ch));
-            ValueR = double.Parse(lexeme);
+            ValueR = double.Parse(Lexeme);
         }
 
         private void ReadLiteral()
@@ -359,7 +359,7 @@ namespace MiniJavaCompiler
             try
             {
                 // check if token exist in lookup table
-                Token = tokenSymbols[lexeme];
+                Token = tokenSymbols[Lexeme];
             }
             catch (KeyNotFoundException)
             {
