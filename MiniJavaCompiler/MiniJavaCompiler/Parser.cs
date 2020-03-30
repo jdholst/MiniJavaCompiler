@@ -160,6 +160,7 @@ namespace MiniJavaCompiler
                     break;
                 case Symbol.intt:
                 case Symbol.booleant:
+                case Symbol.floatt:
                     var (varType, varSize) = Type();
 
                     IdentifierList(varType, varSize, parentEntry);
@@ -264,23 +265,36 @@ namespace MiniJavaCompiler
             if (analyzer.Token == Symbol.intt || analyzer.Token == Symbol.booleant || analyzer.Token == Symbol.floatt)
             {
                 var (type, size) = Type();
+
+                symTable.Insert<VarEntry>(analyzer.Lexeme, analyzer.Token, currentDepth + 1);
+                var varEntry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+                varEntry.Offset = 0;
+                varEntry.Size = size;
+                varEntry.TypeOfVariable = type;
                 entry.ParamList.Add(type);
                 entry.SizeOfParameters += size;
                 Match(Symbol.idt);
-                FormalRest(entry); 
+                FormalRest(entry, size); 
             }
         }
 
-        private static void FormalRest(MethodEntry entry)
+        private static void FormalRest(MethodEntry entry, int offset)
         {
             if (analyzer.Token == Symbol.commat)
             {
                 Match(Symbol.commat);
                 var (type, size) = Type();
+
+                symTable.Insert<VarEntry>(analyzer.Lexeme, analyzer.Token, currentDepth + 1);
+                var varEntry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+                varEntry.Offset = offset;
+                varEntry.Size = size;
+                varEntry.TypeOfVariable = type;
                 entry.ParamList.Add(type);
                 entry.SizeOfParameters += size;
+
                 Match(Symbol.idt);
-                FormalRest(entry); 
+                FormalRest(entry, offset + size); 
             }
         }
 
