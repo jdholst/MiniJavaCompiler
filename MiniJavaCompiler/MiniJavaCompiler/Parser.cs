@@ -300,12 +300,162 @@ namespace MiniJavaCompiler
 
         private static void SeqOfStatements()
         {
+            if (analyzer.Token == Symbol.idt)
+            {
+                Statement();
+                Match(Symbol.semit);
+                StatTail();
+            }
+        }
+
+        private static void StatTail()
+        {
+            if (analyzer.Token == Symbol.idt)
+            {
+                Statement();
+                Match(Symbol.semit);
+                StatTail();
+            }
+        }
+
+        private static void Statement()
+        {
+            if (analyzer.Token == Symbol.idt)
+            {
+                AssignStat();
+            }
+            else
+            {
+                IOStat();
+            }
+        }
+
+        private static void AssignStat()
+        {
+            var entry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+            if (entry == null)
+                throw new UndeclaredVariableException(analyzer.Lexeme);
+
+            Match(Symbol.idt);
+            Match(Symbol.assignopt);
+            Expr();
+        }
+
+        private static void IOStat()
+        {
             // empty
         }
 
         private static void Expr()
         {
-            // empty
+            if (analyzer.Token == Symbol.idt ||
+                analyzer.Token == Symbol.numt ||
+                analyzer.Token == Symbol.lparent ||
+                analyzer.Token == Symbol.nott ||
+                analyzer.Token == Symbol.addopt ||
+                analyzer.Token == Symbol.truet ||
+                analyzer.Token == Symbol.falset)
+            {
+                Relation();
+            }
+        }
+
+        private static void Relation()
+        {
+            SimpleExpr();
+        }
+
+        private static void SimpleExpr()
+        {
+            Term();
+            MoreTerm();
+        }
+
+        private static void MoreTerm()
+        {
+            if (analyzer.Token == Symbol.addopt)
+            {
+                AddOp();
+                Term();
+                MoreTerm();
+            }
+        }
+
+        private static void Term()
+        {
+            Factor();
+            MoreFactor();
+        }
+
+        private static void MoreFactor()
+        {
+            if (analyzer.Token == Symbol.mulopt)
+            {
+                MulOp();
+                Factor();
+                MoreFactor();
+            }
+        }
+
+        private static void Factor()
+        {
+            switch (analyzer.Token)
+            {
+                case Symbol.idt:
+                    var entry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+                    if (entry == null)
+                        throw new UndeclaredVariableException(analyzer.Lexeme);
+
+                    Match(Symbol.idt);
+                    break;
+                case Symbol.numt:
+                    Match(Symbol.numt);
+                    break;
+                case Symbol.lparent:
+                    Match(Symbol.lparent);
+                    Expr();
+                    Match(Symbol.rparent);
+                    break;
+                case Symbol.nott:
+                    Match(Symbol.nott);
+                    Factor();
+                    break;
+                case Symbol.addopt:
+                    SignOp();
+                    Factor();
+                    break;
+                case Symbol.truet:
+                    Match(Symbol.truet);
+                    break;
+                case Symbol.falset:
+                    Match(Symbol.falset);
+                    break;
+                default:
+                    throw new UnexpectedTokenException(
+                        analyzer.Token,
+                        Symbol.idt,
+                        Symbol.numt,
+                        Symbol.lparent,
+                        Symbol.nott,
+                        Symbol.addopt,
+                        Symbol.truet,
+                        Symbol.falset);
+            }
+        }
+
+        private static void AddOp()
+        {
+            Match(Symbol.addopt);
+        }
+
+        private static void MulOp()
+        {
+            Match(Symbol.mulopt);
+        }
+
+        private static void SignOp()
+        {
+            Match(Symbol.addopt);
         }
 
         private static void Match(Symbol desired)
@@ -341,6 +491,16 @@ namespace MiniJavaCompiler
         {
             Expected = expected;
             Actual = actual;
+        }
+    }
+
+    public class UndeclaredVariableException: Exception
+    {
+        public string Lexeme { get; private set; }
+
+        public UndeclaredVariableException(string lexeme): base()
+        {
+            Lexeme = lexeme;
         }
     }
 }
