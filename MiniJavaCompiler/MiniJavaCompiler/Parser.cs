@@ -44,6 +44,10 @@ namespace MiniJavaCompiler
             {
                 Console.WriteLine($"Error on line {analyzer.LineNo}: Duplicate lexeme {ex.Lexeme} encountered");
             }
+            catch (UndeclaredVariableException ex)
+            {
+                Console.WriteLine($"Error on line {analyzer.LineNo}: Undeclared identifier {ex.Lexeme} used");
+            }
         }
 
         private static void Prog()
@@ -332,7 +336,7 @@ namespace MiniJavaCompiler
 
         private static void AssignStat()
         {
-            var entry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+            var entry = symTable.Lookup(analyzer.Lexeme);
             if (entry == null)
                 throw new UndeclaredVariableException(analyzer.Lexeme);
 
@@ -402,7 +406,7 @@ namespace MiniJavaCompiler
             switch (analyzer.Token)
             {
                 case Symbol.idt:
-                    var entry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+                    var entry = symTable.Lookup(analyzer.Lexeme);
                     if (entry == null)
                         throw new UndeclaredVariableException(analyzer.Lexeme);
 
