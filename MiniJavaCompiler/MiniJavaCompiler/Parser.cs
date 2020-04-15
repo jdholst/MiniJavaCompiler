@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace MiniJavaCompiler
@@ -8,16 +9,19 @@ namespace MiniJavaCompiler
     {
         private static LexicalAnalyzer analyzer;
         private static SymbolTable symTable;
+        private static FileStream tacFile;
 
         private static int currentOffset = 0;
         private static int currentDepth = 0;
+        private static int currentTempNum = 1;
 
-        public static void Parse(LexicalAnalyzer lexicalAnalyzer)
+        public static void Parse(string filePath)
         {
             try
             {
                 symTable = new SymbolTable(211);
-                analyzer = lexicalAnalyzer;
+                analyzer = new LexicalAnalyzer(filePath);
+                tacFile = File.Create(Path.GetFileNameWithoutExtension(filePath) + ".tac");
                 analyzer.GetNextToken(); // prime the parser
                 Prog();
             }
@@ -44,9 +48,17 @@ namespace MiniJavaCompiler
             {
                 Console.WriteLine($"Error on line {analyzer.LineNo}: Duplicate lexeme {ex.Lexeme} encountered");
             }
-            catch (UndeclaredVariableException ex)
+            catch (UndeclaredTokenException ex)
             {
                 Console.WriteLine($"Error on line {analyzer.LineNo}: Undeclared identifier {ex.Lexeme} used");
+            }
+            catch (OtherParseException ex)
+            {
+                Console.WriteLine($"Error on line {analyzer.LineNo}: {ex.Message}");
+            }
+            finally
+            {
+                tacFile.Close();
             }
         }
 
@@ -257,7 +269,7 @@ namespace MiniJavaCompiler
                 VarDecl(entry);
                 SeqOfStatements();
                 Match(Symbol.returnt);
-                Expr();
+                Expr(null);
                 Match(Symbol.semit);
                 Match(Symbol.endt);
                 MethodDecl(parentEntry);
@@ -336,13 +348,42 @@ namespace MiniJavaCompiler
 
         private static void AssignStat()
         {
-            var entry = symTable.Lookup(analyzer.Lexeme);
-            if (entry == null)
-                throw new UndeclaredVariableException(analyzer.Lexeme);
+            if (analyzer.Token == Symbol.idt)
+            {
+                VarEntry assignEntry = null;
 
-            Match(Symbol.idt);
-            Match(Symbol.assignopt);
-            Expr();
+                var entry = symTable.Lookup(analyzer.Lexeme);
+                if (entry == null)
+                    throw new UndeclaredTokenException(analyzer.Lexeme);
+
+                if (entry is VarEntry)
+                {
+                    Match(Symbol.idt);
+                    Match(Symbol.assignopt);
+                    assignEntry = entry as VarEntry;
+                    entry = symTable.Lookup(analyzer.Lexeme);
+                }
+
+                if (entry is ClassEntry)
+                {
+                    MethodCall();
+
+                    if (assignEntry != null)
+                    {
+                        Emit($"{assignEntry.Lexeme} = _AX");
+                    }
+                }
+                else if (entry is MethodEntry)
+                {
+                    throw new OtherParseException("Invalid method call. Must specify class name before method call like so: ClassName.MethodName()");
+                }
+                else
+                {
+                    VarEntry exprEntry = null;
+                    Expr(exprEntry);
+
+                }
+            }
         }
 
         private static void IOStat()
@@ -350,7 +391,81 @@ namespace MiniJavaCompiler
             // empty
         }
 
-        private static void Expr()
+        private static void MethodCall()
+        {
+            ClassName();
+            Match(Symbol.periodt);
+
+            var entry = symTable.Lookup<MethodEntry>(analyzer.Lexeme);
+            if (entry == null)
+                throw new UndeclaredTokenException(analyzer.Lexeme);
+
+            Match(Symbol.idt);
+            Match(Symbol.lparent);
+            var paramList = Params();
+            Match(Symbol.rparent);
+
+            for (int i = paramList.Count - 1; i >= 0; i--)
+            {
+                Emit($"push {paramList[i]}");
+            }
+
+            Emit($"call {entry.Lexeme}");
+        }
+
+        private static List<string> Params()
+        {
+            var paramList = new List<string>();
+            if (analyzer.Token == Symbol.idt)
+            {
+                var entry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+                if (entry == null)
+                    throw new UndeclaredTokenException(analyzer.Lexeme);
+                paramList.Add(entry.Lexeme);
+
+                Match(Symbol.idt);
+                ParamsTail(paramList);
+            }
+            else if (analyzer.Token == Symbol.numt)
+            {
+                paramList.Add(analyzer.Lexeme);
+                Match(Symbol.numt);
+                ParamsTail(paramList);
+            }
+
+            return paramList;
+        }
+
+        private static void ParamsTail(List<string> paramList)
+        {
+            if (analyzer.Token == Symbol.commat)
+            {
+                Match(Symbol.commat);
+                if (analyzer.Token == Symbol.idt)
+                {
+                    var entry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+                    if (entry == null)
+                        throw new UndeclaredTokenException(analyzer.Lexeme);
+                    paramList.Add(entry.Lexeme);
+                    Match(Symbol.idt);
+
+                    ParamsTail(paramList);
+                }
+                else if (analyzer.Token == Symbol.numt)
+                {
+                    paramList.Add(analyzer.Lexeme);
+                    Match(Symbol.numt);
+                    ParamsTail(paramList);
+                }
+            }
+        }
+
+        private static void ClassName()
+        {
+            Match(Symbol.idt);
+        }
+
+        private static void Expr(VarEntry entryRef)
         {
             if (analyzer.Token == Symbol.idt ||
                 analyzer.Token == Symbol.numt ||
@@ -360,55 +475,56 @@ namespace MiniJavaCompiler
                 analyzer.Token == Symbol.truet ||
                 analyzer.Token == Symbol.falset)
             {
-                Relation();
+                Relation(entryRef);
             }
+
         }
 
-        private static void Relation()
+        private static void Relation(VarEntry entryRef)
         {
-            SimpleExpr();
+            SimpleExpr(entryRef);
         }
 
-        private static void SimpleExpr()
+        private static void SimpleExpr(VarEntry entryRef)
         {
-            Term();
-            MoreTerm();
+            Term(entryRef);
+            MoreTerm(entryRef);
         }
 
-        private static void MoreTerm()
+        private static void MoreTerm(VarEntry entryRef)
         {
             if (analyzer.Token == Symbol.addopt)
             {
                 AddOp();
-                Term();
-                MoreTerm();
+                Term(entryRef);
+                MoreTerm(entryRef);
             }
         }
 
-        private static void Term()
+        private static void Term(VarEntry entryRef)
         {
-            Factor();
-            MoreFactor();
+            Factor(entryRef);
+            MoreFactor(entryRef);
         }
 
-        private static void MoreFactor()
+        private static void MoreFactor(VarEntry entryRef)
         {
             if (analyzer.Token == Symbol.mulopt)
             {
                 MulOp();
-                Factor();
-                MoreFactor();
+                Factor(entryRef);
+                MoreFactor(entryRef);
             }
         }
 
-        private static void Factor()
+        private static void Factor(VarEntry entryRef)
         {
             switch (analyzer.Token)
             {
                 case Symbol.idt:
-                    var entry = symTable.Lookup(analyzer.Lexeme);
+                    var entry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
                     if (entry == null)
-                        throw new UndeclaredVariableException(analyzer.Lexeme);
+                        throw new UndeclaredTokenException(analyzer.Lexeme);
 
                     Match(Symbol.idt);
                     break;
@@ -417,16 +533,16 @@ namespace MiniJavaCompiler
                     break;
                 case Symbol.lparent:
                     Match(Symbol.lparent);
-                    Expr();
+                    Expr(entryRef);
                     Match(Symbol.rparent);
                     break;
                 case Symbol.nott:
                     Match(Symbol.nott);
-                    Factor();
+                    Factor(entryRef);
                     break;
                 case Symbol.addopt:
                     SignOp();
-                    Factor();
+                    Factor(entryRef);
                     break;
                 case Symbol.truet:
                     Match(Symbol.truet);
@@ -459,7 +575,13 @@ namespace MiniJavaCompiler
 
         private static void SignOp()
         {
+            var lexeme = analyzer.Lexeme;
             Match(Symbol.addopt);
+
+            if (lexeme != "-")
+            {
+                throw new OtherParseException($"Invalid addopt used for signop. Must use \"-\" sign.");
+            }
         }
 
         private static void Match(Symbol desired)
@@ -485,6 +607,17 @@ namespace MiniJavaCompiler
                 throw new UnexpectedTokenException(analyzer.Token, desired);
             }
         }
+
+        private static void Emit(string code)
+        {
+            code += '\n';
+            tacFile.Write(Encoding.ASCII.GetBytes(code));
+        }
+
+        private static string NewTemp()
+        {
+            return $"_t{currentTempNum++}";
+        }
     }
 
     public class UnexpectedTokenException: Exception
@@ -498,13 +631,19 @@ namespace MiniJavaCompiler
         }
     }
 
-    public class UndeclaredVariableException: Exception
+    public class UndeclaredTokenException: Exception
     {
         public string Lexeme { get; private set; }
 
-        public UndeclaredVariableException(string lexeme): base()
+        public UndeclaredTokenException(string lexeme): base()
         {
             Lexeme = lexeme;
         }
+    }
+
+    // Used for less frequent errors. Allows user to pass in custom message
+    public class OtherParseException: Exception
+    {
+        public OtherParseException(string message) : base(message) { }
     }
 }

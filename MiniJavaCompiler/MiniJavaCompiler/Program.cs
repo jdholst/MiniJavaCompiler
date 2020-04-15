@@ -7,8 +7,7 @@ namespace MiniJavaCompiler
     {
         static void Main(string[] args)
         {
-            var analyzer = new LexicalAnalyzer(args[0]);
-            Parser.Parse(analyzer);
+            Parser.Parse(args[0]);
         }
     }
 }
