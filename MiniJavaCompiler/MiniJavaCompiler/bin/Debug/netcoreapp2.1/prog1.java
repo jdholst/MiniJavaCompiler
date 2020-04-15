@@ -1,10 +1,9 @@
 class one{
 	final int a = 2;
-	public float steam(float y){
+	public float steam(float y, float z){
 		float a;
-		a = 25.0 + y;
+		a = z + y;
 		return a;
-
 	}
 }
 final class Main{

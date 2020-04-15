@@ -8,7 +8,7 @@ class test2 {
 	boolean xy,y,z;
 
 	public int steam(float y, int j){
-		x = (y / 10) * 100;
+		x = (y / j) * a;
 		return x;
 	}
 

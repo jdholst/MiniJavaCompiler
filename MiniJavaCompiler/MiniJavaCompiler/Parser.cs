@@ -269,7 +269,8 @@ namespace MiniJavaCompiler
                 VarDecl(entry);
                 SeqOfStatements();
                 Match(Symbol.returnt);
-                Expr(null);
+                var retEntry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+                Expr(ref retEntry);
                 Match(Symbol.semit);
                 Match(Symbol.endt);
                 MethodDecl(parentEntry);
@@ -370,7 +371,7 @@ namespace MiniJavaCompiler
 
                     if (assignEntry != null)
                     {
-                        Emit($"{assignEntry.Lexeme} = _AX");
+                        Emit($"{assignEntry} = _AX");
                     }
                 }
                 else if (entry is MethodEntry)
@@ -379,9 +380,13 @@ namespace MiniJavaCompiler
                 }
                 else
                 {
-                    VarEntry exprEntry = null;
-                    Expr(exprEntry);
+                    var varEntry = entry as VarEntry;
+                    Expr(ref varEntry);
 
+                    if (varEntry != null && assignEntry != null)
+                    {
+                        Emit($"{assignEntry} = {varEntry}");
+                    }
                 }
             }
         }
@@ -410,7 +415,7 @@ namespace MiniJavaCompiler
                 Emit($"push {paramList[i]}");
             }
 
-            Emit($"call {entry.Lexeme}");
+            Emit($"call {entry}");
         }
 
         private static List<string> Params()
@@ -465,7 +470,7 @@ namespace MiniJavaCompiler
             Match(Symbol.idt);
         }
 
-        private static void Expr(VarEntry entryRef)
+        private static void Expr(ref VarEntry entryRef)
         {
             if (analyzer.Token == Symbol.idt ||
                 analyzer.Token == Symbol.numt ||
@@ -475,49 +480,63 @@ namespace MiniJavaCompiler
                 analyzer.Token == Symbol.truet ||
                 analyzer.Token == Symbol.falset)
             {
-                Relation(entryRef);
+                Relation(ref entryRef);
             }
 
         }
 
-        private static void Relation(VarEntry entryRef)
+        private static void Relation(ref VarEntry entryRef)
         {
-            SimpleExpr(entryRef);
+            SimpleExpr(ref entryRef);
         }
 
-        private static void SimpleExpr(VarEntry entryRef)
+        private static void SimpleExpr(ref VarEntry entryRef)
         {
-            Term(entryRef);
-            MoreTerm(entryRef);
+            Term(ref entryRef);
+            MoreTerm(ref entryRef);
         }
 
-        private static void MoreTerm(VarEntry entryRef)
+        private static void MoreTerm(ref VarEntry entryRef)
         {
             if (analyzer.Token == Symbol.addopt)
             {
-                AddOp();
-                Term(entryRef);
-                MoreTerm(entryRef);
+                var entryTemp = NewTemp(entryRef);
+                var code = $"{entryTemp} = {entryRef} {analyzer.Lexeme} ";
+
+                Match(Symbol.addopt);
+                Term(ref entryRef);
+
+                Emit(code + entryRef);
+                entryRef = entryTemp;
+
+                MoreTerm(ref entryRef);
             }
         }
 
-        private static void Term(VarEntry entryRef)
+        private static void Term(ref VarEntry entryRef)
         {
-            Factor(entryRef);
-            MoreFactor(entryRef);
+            Factor(ref entryRef);
+            MoreFactor(ref entryRef);
         }
 
-        private static void MoreFactor(VarEntry entryRef)
+        private static void MoreFactor(ref VarEntry entryRef)
         {
             if (analyzer.Token == Symbol.mulopt)
             {
-                MulOp();
-                Factor(entryRef);
-                MoreFactor(entryRef);
+                var entryTemp = NewTemp(entryRef);
+                var code = $"{entryTemp} = {entryRef} {analyzer.Lexeme} ";
+
+                Match(Symbol.mulopt);
+                Factor(ref entryRef);
+
+                Emit(code + entryRef);
+                entryRef = entryTemp;
+
+                MoreFactor(ref entryRef);
             }
         }
 
-        private static void Factor(VarEntry entryRef)
+        private static void Factor(ref VarEntry entryRef)
         {
             switch (analyzer.Token)
             {
@@ -525,6 +544,7 @@ namespace MiniJavaCompiler
                     var entry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
                     if (entry == null)
                         throw new UndeclaredTokenException(analyzer.Lexeme);
+                    entryRef = entry;
 
                     Match(Symbol.idt);
                     break;
@@ -533,16 +553,16 @@ namespace MiniJavaCompiler
                     break;
                 case Symbol.lparent:
                     Match(Symbol.lparent);
-                    Expr(entryRef);
+                    Expr(ref entryRef);
                     Match(Symbol.rparent);
                     break;
                 case Symbol.nott:
                     Match(Symbol.nott);
-                    Factor(entryRef);
+                    Factor(ref entryRef);
                     break;
                 case Symbol.addopt:
-                    SignOp();
-                    Factor(entryRef);
+                    SignOp(ref entryRef);
+                    Factor(ref entryRef);
                     break;
                 case Symbol.truet:
                     Match(Symbol.truet);
@@ -563,17 +583,7 @@ namespace MiniJavaCompiler
             }
         }
 
-        private static void AddOp()
-        {
-            Match(Symbol.addopt);
-        }
-
-        private static void MulOp()
-        {
-            Match(Symbol.mulopt);
-        }
-
-        private static void SignOp()
+        private static void SignOp(ref VarEntry entryRef)
         {
             var lexeme = analyzer.Lexeme;
             Match(Symbol.addopt);
@@ -614,9 +624,11 @@ namespace MiniJavaCompiler
             tacFile.Write(Encoding.ASCII.GetBytes(code));
         }
 
-        private static string NewTemp()
+        private static VarEntry NewTemp(VarEntry other)
         {
-            return $"_t{currentTempNum++}";
+            var tempLexeme = $"_t{currentTempNum++}";
+            symTable.Insert<VarEntry>(tempLexeme, other.Token, other.Depth);
+            return symTable.Lookup<VarEntry>(tempLexeme);
         }
     }
 

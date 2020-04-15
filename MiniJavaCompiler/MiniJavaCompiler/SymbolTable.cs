@@ -8,6 +8,11 @@ namespace MiniJavaCompiler
 
     public class TableEntry
     {
+        public override string ToString()
+        {
+            return Lexeme;
+        }
+
         public Symbol Token { get; set; }
         public string Lexeme { get; set; }
         public int Depth { get; set; }
