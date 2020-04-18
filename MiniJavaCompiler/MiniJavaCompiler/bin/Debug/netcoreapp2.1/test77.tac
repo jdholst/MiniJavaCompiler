@@ -11,5 +11,6 @@ _bp-28 = _bp-2 + _bp-4
 _bp-26 = _bp-24 * _bp-28
 _bp-6 = _bp-26
 endp test6
+
 proc main
 endp main

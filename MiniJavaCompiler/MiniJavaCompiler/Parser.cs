@@ -501,7 +501,7 @@ namespace MiniJavaCompiler
         {
             if (analyzer.Token == Symbol.addopt)
             {
-                var entryTemp = NewTemp(entryRef.Token);
+                var entryTemp = NewTemp(entryRef.Token, 2);
                 var code = $"{GetBasePointerOffset(entryTemp, parentEntry)} = {GetBasePointerOffset(entryRef, parentEntry)} {analyzer.Lexeme} ";
 
                 Match(Symbol.addopt);
@@ -524,7 +524,7 @@ namespace MiniJavaCompiler
         {
             if (analyzer.Token == Symbol.mulopt)
             {
-                var entryTemp = NewTemp(entryRef.Token);
+                var entryTemp = NewTemp(entryRef.Token, 2);
                 var code = $"{GetBasePointerOffset(entryTemp, parentEntry)} = {GetBasePointerOffset(entryRef, parentEntry)} {analyzer.Lexeme} ";
 
                 Match(Symbol.mulopt);
@@ -539,6 +539,7 @@ namespace MiniJavaCompiler
 
         private static void Factor(ref TableEntry entryRef, MethodEntry parentEntry)
         {
+            VarEntry temp;
             switch (analyzer.Token)
             {
                 case Symbol.idt:
@@ -550,7 +551,7 @@ namespace MiniJavaCompiler
                     Match(Symbol.idt);
                     break;
                 case Symbol.numt:
-                    entryRef = NewTemp(Symbol.numt);
+                    entryRef = NewTemp(Symbol.numt, 2);
                     Emit($"{GetBasePointerOffset(entryRef, parentEntry)} = {analyzer.Lexeme}");
                     Match(Symbol.numt);
                     break;
@@ -559,21 +560,28 @@ namespace MiniJavaCompiler
                     Expr(ref entryRef, parentEntry);
                     Match(Symbol.rparent);
                     break;
-                case Symbol.nott:
-                    Match(Symbol.nott);
-                    Factor(ref entryRef, parentEntry);
-                    break;
                 case Symbol.addopt:
                     SignOp();
-                    var temp = NewTemp(Symbol.numt);
+                    temp = NewTemp(Symbol.numt, 2);
                     Emit($"{GetBasePointerOffset(temp, parentEntry)} = -1 * {GetBasePointerOffset(entryRef, parentEntry)}");
                     entryRef = temp;
                     Factor(ref entryRef, parentEntry);
                     break;
+                case Symbol.nott:
+                    Match(Symbol.nott);
+                    temp = NewTemp(Symbol.booleant, 1);
+                    Emit($"{GetBasePointerOffset(temp, parentEntry)} = !{GetBasePointerOffset(entryRef, parentEntry)}");
+                    entryRef = temp;
+                    Factor(ref entryRef, parentEntry);
+                    break;
                 case Symbol.truet:
+                    entryRef = NewTemp(Symbol.truet, 1);
+                    Emit($"{GetBasePointerOffset(entryRef, parentEntry)} = {analyzer.Lexeme}");
                     Match(Symbol.truet);
                     break;
                 case Symbol.falset:
+                    entryRef = NewTemp(Symbol.falset, 1);
+                    Emit($"{GetBasePointerOffset(entryRef, parentEntry)} = {analyzer.Lexeme}");
                     Match(Symbol.falset);
                     break;
                 default:
@@ -630,12 +638,12 @@ namespace MiniJavaCompiler
             tacFile.Write(Encoding.ASCII.GetBytes(code));
         }
 
-        private static VarEntry NewTemp(Symbol tempToken)
+        private static VarEntry NewTemp(Symbol tempToken, int size)
         {
             var tempLexeme = $"_t{currentTempNum++}";
             var temp = symTable.Insert<VarEntry>(tempLexeme, tempToken, currentDepth);
             temp.Offset = currentOffset;
-            temp.Size = 2;
+            temp.Size = size;
             currentOffset += 2;
             return temp;
         }

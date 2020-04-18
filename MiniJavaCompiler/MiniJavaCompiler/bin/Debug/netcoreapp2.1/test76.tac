@@ -10,5 +10,6 @@ _bp-24 = _bp-2 + _bp-4
 _bp-22 = _bp-20 * _bp-24
 _bp-6 = _bp-22
 endp test6
+
 proc main
 endp main
