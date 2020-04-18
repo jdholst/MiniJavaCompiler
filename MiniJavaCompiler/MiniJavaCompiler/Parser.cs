@@ -75,7 +75,7 @@ namespace MiniJavaCompiler
             Match(Symbol.finalt);
             Match(Symbol.classt);
 
-            symTable.Insert<ClassEntry>(analyzer.Lexeme, analyzer.Token, currentDepth);
+            var entry = symTable.Insert<ClassEntry>(analyzer.Lexeme, analyzer.Token, currentDepth);
 
             Match(Symbol.idt);
             Match(Symbol.begint);
@@ -83,10 +83,12 @@ namespace MiniJavaCompiler
             Match(Symbol.statict);
             Match(Symbol.voidt);
 
-            var entry = symTable.Insert<MethodEntry>(analyzer.Lexeme, analyzer.Token, currentDepth);
-            entry.ReturnType = VarType.voidType;
+            var methodEntry = symTable.Insert<MethodEntry>(analyzer.Lexeme, analyzer.Token, currentDepth);
+            methodEntry.ReturnType = VarType.voidType;
 
-            Emit($"proc {entry.Lexeme}");
+            entry.MethodNames.Add(analyzer.Lexeme);
+
+            Emit($"proc {methodEntry.Lexeme}");
 
             Match(Symbol.maint);
             Match(Symbol.lparent);
@@ -96,11 +98,11 @@ namespace MiniJavaCompiler
             Match(Symbol.idt);
             Match(Symbol.rparent);
             Match(Symbol.begint);
-            SeqOfStatements(entry);
+            SeqOfStatements(methodEntry);
             Match(Symbol.endt);
             Match(Symbol.endt);
 
-            Emit($"endp {entry.Lexeme}");
+            Emit($"endp {methodEntry.Lexeme}");
         }
         
         private static void MoreClasses()
@@ -537,16 +539,22 @@ namespace MiniJavaCompiler
             }
         }
 
-        private static void Factor(ref TableEntry entryRef, MethodEntry parentEntry)
+        private static void Factor(ref TableEntry entryRef, MethodEntry parentEntry, TableEntry tempEntry = null)
         {
             VarEntry temp;
+            TableEntry entry;
             switch (analyzer.Token)
             {
                 case Symbol.idt:
-                    var entry = symTable.Lookup(analyzer.Lexeme);
-                    if (entry == null)
-                        throw new UndeclaredTokenException(analyzer.Lexeme);
-                    entryRef = entry;
+                    if (tempEntry == null)
+                    {
+                        entry = symTable.Lookup(analyzer.Lexeme);
+                        entryRef = entry ?? throw new UndeclaredTokenException(analyzer.Lexeme);
+                    }
+                    else
+                    {
+                        entryRef = tempEntry;
+                    }
 
                     Match(Symbol.idt);
                     break;
@@ -562,17 +570,19 @@ namespace MiniJavaCompiler
                     break;
                 case Symbol.addopt:
                     SignOp();
+
                     temp = NewTemp(Symbol.numt, 2);
-                    Emit($"{GetBasePointerOffset(temp, parentEntry)} = -1 * {GetBasePointerOffset(entryRef, parentEntry)}");
-                    entryRef = temp;
-                    Factor(ref entryRef, parentEntry);
+                    entry = symTable.Lookup(analyzer.Lexeme);
+                    Emit($"{GetBasePointerOffset(temp, parentEntry)} = -1 * {GetBasePointerOffset(entry, parentEntry)}");
+                    Factor(ref entryRef, parentEntry, temp);
                     break;
                 case Symbol.nott:
                     Match(Symbol.nott);
                     temp = NewTemp(Symbol.booleant, 1);
-                    Emit($"{GetBasePointerOffset(temp, parentEntry)} = !{GetBasePointerOffset(entryRef, parentEntry)}");
-                    entryRef = temp;
-                    Factor(ref entryRef, parentEntry);
+                    entry = symTable.Lookup(analyzer.Lexeme);
+                    Emit($"{GetBasePointerOffset(temp, parentEntry)} = !{GetBasePointerOffset(entry, parentEntry)}");
+
+                    Factor(ref entryRef, parentEntry, temp);
                     break;
                 case Symbol.truet:
                     entryRef = NewTemp(Symbol.truet, 1);
