@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Linq;
 
 namespace MiniJavaCompiler
 {
@@ -82,9 +83,10 @@ namespace MiniJavaCompiler
             Match(Symbol.statict);
             Match(Symbol.voidt);
 
-            symTable.Insert<MethodEntry>(analyzer.Lexeme, analyzer.Token, currentDepth);
-            var entry = symTable.Lookup<MethodEntry>(analyzer.Lexeme);
+            var entry = symTable.Insert<MethodEntry>(analyzer.Lexeme, analyzer.Token, currentDepth);
             entry.ReturnType = VarType.voidType;
+
+            Emit($"proc {entry.Lexeme}");
 
             Match(Symbol.maint);
             Match(Symbol.lparent);
@@ -94,9 +96,11 @@ namespace MiniJavaCompiler
             Match(Symbol.idt);
             Match(Symbol.rparent);
             Match(Symbol.begint);
-            SeqOfStatements();
+            SeqOfStatements(entry);
             Match(Symbol.endt);
             Match(Symbol.endt);
+
+            Emit($"endp {entry.Lexeme}");
         }
         
         private static void MoreClasses()
@@ -112,8 +116,7 @@ namespace MiniJavaCompiler
         {
             Match(Symbol.classt);
 
-            symTable.Insert<ClassEntry>(analyzer.Lexeme, analyzer.Token, currentDepth);
-            var entry = symTable.Lookup<ClassEntry>(analyzer.Lexeme);
+            var entry = symTable.Insert<ClassEntry>(analyzer.Lexeme, analyzer.Token, currentDepth);
 
             Match(Symbol.idt);
 
@@ -154,16 +157,14 @@ namespace MiniJavaCompiler
 
                     if (constType == VarType.intType)
                     {
-                        symTable.Insert<ConstEntry<int>>(varName, varToken, currentDepth);
-                        var intEntry = symTable.Lookup<ConstEntry<int>>(varName);
+                        var intEntry = symTable.Insert<ConstEntry<int>>(varName, varToken, currentDepth);
                         intEntry.TypeOfConstant = constType;
                         intEntry.Value = int.Parse(analyzer.Lexeme);
                         intEntry.Offset = currentOffset;
                     }
                     else if (constType == VarType.floatType)
                     {
-                        symTable.Insert<ConstEntry<float>>(varName, varToken, currentDepth);
-                        var floatEntry = symTable.Lookup<ConstEntry<float>>(varName);
+                        var floatEntry = symTable.Insert<ConstEntry<float>>(varName, varToken, currentDepth);
                         floatEntry.TypeOfConstant = constType;
                         floatEntry.Value = float.Parse(analyzer.Lexeme);
                         floatEntry.Offset = currentOffset;
@@ -184,13 +185,10 @@ namespace MiniJavaCompiler
                     VarDecl(parentEntry);
                     break;
             }
-
-            currentOffset = 0;
         }
 
         private static void IdentifierList(VarType type, int size, TableEntry parentEntry)
         {
-            symTable.Insert<VarEntry>(analyzer.Lexeme, analyzer.Token, currentDepth);
 
             if (parentEntry is ClassEntry)
             {
@@ -201,8 +199,7 @@ namespace MiniJavaCompiler
             {
                 (parentEntry as MethodEntry).SizeOfLocals += size;
             }
-
-            var varEntry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+            var varEntry = symTable.Insert<VarEntry>(analyzer.Lexeme, analyzer.Token, currentDepth);
             varEntry.TypeOfVariable = type;
             varEntry.Size = size;
             varEntry.Offset = currentOffset;
@@ -256,10 +253,11 @@ namespace MiniJavaCompiler
                 Match(Symbol.publict);
                 var (type, _) = Type();
 
-                symTable.Insert<MethodEntry>(analyzer.Lexeme, analyzer.Token, currentDepth);
-                var entry = symTable.Lookup<MethodEntry>(analyzer.Lexeme);
+                var entry = symTable.Insert<MethodEntry>(analyzer.Lexeme, analyzer.Token, currentDepth);
                 entry.ReturnType = type;
                 parentEntry.MethodNames.Add(analyzer.Lexeme);
+
+                Emit($"proc {entry.Lexeme}");
 
                 Match(Symbol.idt);
                 Match(Symbol.lparent);
@@ -267,14 +265,20 @@ namespace MiniJavaCompiler
                 Match(Symbol.rparent);
                 Match(Symbol.begint);
                 VarDecl(entry);
-                SeqOfStatements();
+                SeqOfStatements(entry);
                 Match(Symbol.returnt);
-                var retEntry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
-                Expr(ref retEntry);
+                var retEntry = symTable.Lookup(analyzer.Lexeme);
+                Expr(ref retEntry, entry);
                 Match(Symbol.semit);
                 Match(Symbol.endt);
+
+                Emit($"endp {entry.Lexeme}");
+                Emit($""); // space
+                currentOffset = 0;
+
                 MethodDecl(parentEntry);
             }
+            currentOffset = 0;
         }
 
         private static void FormalList(MethodEntry entry)
@@ -283,12 +287,11 @@ namespace MiniJavaCompiler
             {
                 var (type, size) = Type();
 
-                symTable.Insert<VarEntry>(analyzer.Lexeme, analyzer.Token, currentDepth + 1);
-                var varEntry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+                var varEntry = symTable.Insert<VarEntry>(analyzer.Lexeme, analyzer.Token, currentDepth + 1);
                 varEntry.Offset = 0;
                 varEntry.Size = size;
                 varEntry.TypeOfVariable = type;
-                entry.ParamList.Add(type);
+                entry.ParamList.Add((type, varEntry.Lexeme));
                 entry.SizeOfParameters += size;
                 Match(Symbol.idt);
                 FormalRest(entry, size); 
@@ -302,12 +305,11 @@ namespace MiniJavaCompiler
                 Match(Symbol.commat);
                 var (type, size) = Type();
 
-                symTable.Insert<VarEntry>(analyzer.Lexeme, analyzer.Token, currentDepth + 1);
-                var varEntry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+                var varEntry = symTable.Insert<VarEntry>(analyzer.Lexeme, analyzer.Token, currentDepth + 1);
                 varEntry.Offset = offset;
                 varEntry.Size = size;
                 varEntry.TypeOfVariable = type;
-                entry.ParamList.Add(type);
+                entry.ParamList.Add((type, varEntry.Lexeme));
                 entry.SizeOfParameters += size;
 
                 Match(Symbol.idt);
@@ -315,39 +317,39 @@ namespace MiniJavaCompiler
             }
         }
 
-        private static void SeqOfStatements()
+        private static void SeqOfStatements(MethodEntry parentEntry)
         {
             if (analyzer.Token == Symbol.idt)
             {
-                Statement();
+                Statement(parentEntry);
                 Match(Symbol.semit);
-                StatTail();
+                StatTail(parentEntry);
             }
         }
 
-        private static void StatTail()
+        private static void StatTail(MethodEntry parentEntry)
         {
             if (analyzer.Token == Symbol.idt)
             {
-                Statement();
+                Statement(parentEntry);
                 Match(Symbol.semit);
-                StatTail();
+                StatTail(parentEntry);
             }
         }
 
-        private static void Statement()
+        private static void Statement(MethodEntry parentEntry)
         {
             if (analyzer.Token == Symbol.idt)
             {
-                AssignStat();
+                AssignStat(parentEntry);
             }
             else
             {
-                IOStat();
+                IOStat(parentEntry);
             }
         }
 
-        private static void AssignStat()
+        private static void AssignStat(MethodEntry parentEntry)
         {
             if (analyzer.Token == Symbol.idt)
             {
@@ -367,7 +369,7 @@ namespace MiniJavaCompiler
 
                 if (entry is ClassEntry)
                 {
-                    MethodCall();
+                    MethodCall(parentEntry);
 
                     if (assignEntry != null)
                     {
@@ -380,23 +382,22 @@ namespace MiniJavaCompiler
                 }
                 else
                 {
-                    var varEntry = entry as VarEntry;
-                    Expr(ref varEntry);
+                    Expr(ref entry, parentEntry);
 
-                    if (varEntry != null && assignEntry != null)
+                    if (entry != null && assignEntry != null)
                     {
-                        Emit($"{assignEntry} = {varEntry}");
+                        Emit($"{GetBasePointerOffset(assignEntry, parentEntry)} = {GetBasePointerOffset(entry, parentEntry)}");
                     }
                 }
             }
         }
 
-        private static void IOStat()
+        private static void IOStat(MethodEntry parentEntry)
         {
             // empty
         }
 
-        private static void MethodCall()
+        private static void MethodCall(MethodEntry parentEntry)
         {
             ClassName();
             Match(Symbol.periodt);
@@ -407,7 +408,7 @@ namespace MiniJavaCompiler
 
             Match(Symbol.idt);
             Match(Symbol.lparent);
-            var paramList = Params();
+            var paramList = Params(parentEntry);
             Match(Symbol.rparent);
 
             for (int i = paramList.Count - 1; i >= 0; i--)
@@ -418,7 +419,7 @@ namespace MiniJavaCompiler
             Emit($"call {entry}");
         }
 
-        private static List<string> Params()
+        private static List<string> Params(MethodEntry parentEntry)
         {
             var paramList = new List<string>();
             if (analyzer.Token == Symbol.idt)
@@ -426,22 +427,22 @@ namespace MiniJavaCompiler
                 var entry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
                 if (entry == null)
                     throw new UndeclaredTokenException(analyzer.Lexeme);
-                paramList.Add(entry.Lexeme);
+                paramList.Add(GetBasePointerOffset(entry, parentEntry));
 
                 Match(Symbol.idt);
-                ParamsTail(paramList);
+                ParamsTail(paramList, parentEntry);
             }
             else if (analyzer.Token == Symbol.numt)
             {
                 paramList.Add(analyzer.Lexeme);
                 Match(Symbol.numt);
-                ParamsTail(paramList);
+                ParamsTail(paramList, parentEntry);
             }
 
             return paramList;
         }
 
-        private static void ParamsTail(List<string> paramList)
+        private static void ParamsTail(List<string> paramList, MethodEntry parentEntry)
         {
             if (analyzer.Token == Symbol.commat)
             {
@@ -451,16 +452,16 @@ namespace MiniJavaCompiler
                     var entry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
                     if (entry == null)
                         throw new UndeclaredTokenException(analyzer.Lexeme);
-                    paramList.Add(entry.Lexeme);
+                    paramList.Add(GetBasePointerOffset(entry, parentEntry));
                     Match(Symbol.idt);
 
-                    ParamsTail(paramList);
+                    ParamsTail(paramList, parentEntry);
                 }
                 else if (analyzer.Token == Symbol.numt)
                 {
                     paramList.Add(analyzer.Lexeme);
                     Match(Symbol.numt);
-                    ParamsTail(paramList);
+                    ParamsTail(paramList, parentEntry);
                 }
             }
         }
@@ -470,7 +471,7 @@ namespace MiniJavaCompiler
             Match(Symbol.idt);
         }
 
-        private static void Expr(ref VarEntry entryRef)
+        private static void Expr(ref TableEntry entryRef, MethodEntry parentEntry)
         {
             if (analyzer.Token == Symbol.idt ||
                 analyzer.Token == Symbol.numt ||
@@ -480,68 +481,68 @@ namespace MiniJavaCompiler
                 analyzer.Token == Symbol.truet ||
                 analyzer.Token == Symbol.falset)
             {
-                Relation(ref entryRef);
+                Relation(ref entryRef, parentEntry);
             }
 
         }
 
-        private static void Relation(ref VarEntry entryRef)
+        private static void Relation(ref TableEntry entryRef, MethodEntry parentEntry)
         {
-            SimpleExpr(ref entryRef);
+            SimpleExpr(ref entryRef, parentEntry);
         }
 
-        private static void SimpleExpr(ref VarEntry entryRef)
+        private static void SimpleExpr(ref TableEntry entryRef, MethodEntry parentEntry)
         {
-            Term(ref entryRef);
-            MoreTerm(ref entryRef);
+            Term(ref entryRef, parentEntry);
+            MoreTerm(ref entryRef, parentEntry);
         }
 
-        private static void MoreTerm(ref VarEntry entryRef)
+        private static void MoreTerm(ref TableEntry entryRef, MethodEntry parentEntry)
         {
             if (analyzer.Token == Symbol.addopt)
             {
-                var entryTemp = NewTemp(entryRef);
-                var code = $"{entryTemp} = {entryRef} {analyzer.Lexeme} ";
+                var entryTemp = NewTemp(entryRef.Token);
+                var code = $"{GetBasePointerOffset(entryTemp, parentEntry)} = {GetBasePointerOffset(entryRef, parentEntry)} {analyzer.Lexeme} ";
 
                 Match(Symbol.addopt);
-                Term(ref entryRef);
+                Term(ref entryRef, parentEntry);
 
-                Emit(code + entryRef);
+                Emit(code + GetBasePointerOffset(entryRef, parentEntry));
                 entryRef = entryTemp;
 
-                MoreTerm(ref entryRef);
+                MoreTerm(ref entryRef, parentEntry);
             }
         }
 
-        private static void Term(ref VarEntry entryRef)
+        private static void Term(ref TableEntry entryRef, MethodEntry parentEntry)
         {
-            Factor(ref entryRef);
-            MoreFactor(ref entryRef);
+            Factor(ref entryRef, parentEntry);
+            MoreFactor(ref entryRef, parentEntry);
         }
 
-        private static void MoreFactor(ref VarEntry entryRef)
+        private static void MoreFactor(ref TableEntry entryRef, MethodEntry parentEntry)
         {
             if (analyzer.Token == Symbol.mulopt)
             {
-                var entryTemp = NewTemp(entryRef);
-                var code = $"{entryTemp} = {entryRef} {analyzer.Lexeme} ";
+                var entryTemp = NewTemp(entryRef.Token);
+                var code = $"{GetBasePointerOffset(entryTemp, parentEntry)} = {GetBasePointerOffset(entryRef, parentEntry)} {analyzer.Lexeme} ";
 
                 Match(Symbol.mulopt);
-                Factor(ref entryRef);
+                Factor(ref entryRef, parentEntry);
 
-                Emit(code + entryRef);
+                Emit(code + GetBasePointerOffset(entryRef, parentEntry));
                 entryRef = entryTemp;
 
-                MoreFactor(ref entryRef);
+                MoreFactor(ref entryRef, parentEntry);
             }
         }
 
-        private static void Factor(ref VarEntry entryRef)
+        private static void Factor(ref TableEntry entryRef, MethodEntry parentEntry)
         {
             switch (analyzer.Token)
             {
                 case Symbol.idt:
-                    var entry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+                    var entry = symTable.Lookup(analyzer.Lexeme);
                     if (entry == null)
                         throw new UndeclaredTokenException(analyzer.Lexeme);
                     entryRef = entry;
@@ -549,20 +550,25 @@ namespace MiniJavaCompiler
                     Match(Symbol.idt);
                     break;
                 case Symbol.numt:
+                    entryRef = NewTemp(Symbol.numt);
+                    Emit($"{GetBasePointerOffset(entryRef, parentEntry)} = {analyzer.Lexeme}");
                     Match(Symbol.numt);
                     break;
                 case Symbol.lparent:
                     Match(Symbol.lparent);
-                    Expr(ref entryRef);
+                    Expr(ref entryRef, parentEntry);
                     Match(Symbol.rparent);
                     break;
                 case Symbol.nott:
                     Match(Symbol.nott);
-                    Factor(ref entryRef);
+                    Factor(ref entryRef, parentEntry);
                     break;
                 case Symbol.addopt:
-                    SignOp(ref entryRef);
-                    Factor(ref entryRef);
+                    SignOp();
+                    var temp = NewTemp(Symbol.numt);
+                    Emit($"{GetBasePointerOffset(temp, parentEntry)} = -1 * {GetBasePointerOffset(entryRef, parentEntry)}");
+                    entryRef = temp;
+                    Factor(ref entryRef, parentEntry);
                     break;
                 case Symbol.truet:
                     Match(Symbol.truet);
@@ -583,7 +589,7 @@ namespace MiniJavaCompiler
             }
         }
 
-        private static void SignOp(ref VarEntry entryRef)
+        private static void SignOp()
         {
             var lexeme = analyzer.Lexeme;
             Match(Symbol.addopt);
@@ -624,11 +630,27 @@ namespace MiniJavaCompiler
             tacFile.Write(Encoding.ASCII.GetBytes(code));
         }
 
-        private static VarEntry NewTemp(VarEntry other)
+        private static VarEntry NewTemp(Symbol tempToken)
         {
             var tempLexeme = $"_t{currentTempNum++}";
-            symTable.Insert<VarEntry>(tempLexeme, other.Token, other.Depth);
-            return symTable.Lookup<VarEntry>(tempLexeme);
+            var temp = symTable.Insert<VarEntry>(tempLexeme, tempToken, currentDepth);
+            temp.Offset = currentOffset;
+            temp.Size = 2;
+            currentOffset += 2;
+            return temp;
+        }
+
+        private static string GetBasePointerOffset(TableEntry entry, MethodEntry methodEntry)
+        {
+               
+            if (entry is IStorable)
+            {
+                var offsetEntry = entry as IStorable;
+                var isParam = methodEntry.ParamList.Any(param => entry.Lexeme == param.Item2);
+
+                return isParam ? $"_bp+{offsetEntry.Offset + 4}" : $"_bp-{Math.Abs(methodEntry.SizeOfParameters - offsetEntry.Offset) + 2}";
+            }
+            throw new OtherParseException($"{entry} is not an offset variable.");
         }
     }
 

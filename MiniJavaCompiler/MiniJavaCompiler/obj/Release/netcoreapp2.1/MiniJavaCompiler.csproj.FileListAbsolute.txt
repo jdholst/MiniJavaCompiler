@@ -1,0 +1,10 @@
+C:\Users\jaked\OneDrive\Desktop\Spring2020\CSC446\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\bin\Release\netcoreapp2.1\MiniJavaCompiler.deps.json
+C:\Users\jaked\OneDrive\Desktop\Spring2020\CSC446\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\bin\Release\netcoreapp2.1\MiniJavaCompiler.runtimeconfig.json
+C:\Users\jaked\OneDrive\Desktop\Spring2020\CSC446\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\bin\Release\netcoreapp2.1\MiniJavaCompiler.runtimeconfig.dev.json
+C:\Users\jaked\OneDrive\Desktop\Spring2020\CSC446\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\bin\Release\netcoreapp2.1\MiniJavaCompiler.dll
+C:\Users\jaked\OneDrive\Desktop\Spring2020\CSC446\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\bin\Release\netcoreapp2.1\MiniJavaCompiler.pdb
+C:\Users\jaked\OneDrive\Desktop\Spring2020\CSC446\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\obj\Release\netcoreapp2.1\MiniJavaCompiler.csproj.CoreCompileInputs.cache
+C:\Users\jaked\OneDrive\Desktop\Spring2020\CSC446\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\obj\Release\netcoreapp2.1\MiniJavaCompiler.AssemblyInfoInputs.cache
+C:\Users\jaked\OneDrive\Desktop\Spring2020\CSC446\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\obj\Release\netcoreapp2.1\MiniJavaCompiler.AssemblyInfo.cs
+C:\Users\jaked\OneDrive\Desktop\Spring2020\CSC446\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\obj\Release\netcoreapp2.1\MiniJavaCompiler.dll
+C:\Users\jaked\OneDrive\Desktop\Spring2020\CSC446\MiniJavaCompiler\MiniJavaCompiler\MiniJavaCompiler\obj\Release\netcoreapp2.1\MiniJavaCompiler.pdb

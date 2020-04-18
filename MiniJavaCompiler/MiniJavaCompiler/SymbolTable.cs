@@ -4,7 +4,12 @@ using System.Text;
 
 namespace MiniJavaCompiler
 {
-    public enum VarType { intType, floatType, booleanType, voidType };
+    public enum VarType { unknownType, intType, floatType, booleanType, voidType };
+
+    public interface IStorable
+    {
+        int Offset { get; set; }
+    }
 
     public class TableEntry
     {
@@ -18,14 +23,14 @@ namespace MiniJavaCompiler
         public int Depth { get; set; }
     }
 
-    public class VarEntry: TableEntry
+    public class VarEntry: TableEntry, IStorable
     {
         public VarType TypeOfVariable { get; set; }
         public int Offset { get; set; }
         public int Size { get; set; }
     }
 
-    public class ConstEntry<TValue>: TableEntry
+    public class ConstEntry<TValue>: TableEntry, IStorable
     {
         public VarType TypeOfConstant { get; set; }
         public int Offset { get; set; }
@@ -44,7 +49,7 @@ namespace MiniJavaCompiler
             }
         }
         public VarType ReturnType { get; set; }
-        public List<VarType> ParamList { get; set; } = new List<VarType>();
+        public List<(VarType, string)> ParamList { get; set; } = new List<(VarType, string)>();
     }
 
     public class ClassEntry: TableEntry
@@ -65,7 +70,7 @@ namespace MiniJavaCompiler
             this.size = size;
         }
 
-        public void Insert<TEntry>(string lexeme, Symbol token, int depth) where TEntry: TableEntry, new()
+        public TEntry Insert<TEntry>(string lexeme, Symbol token, int depth) where TEntry: TableEntry, new()
         {
             var duplicate = Lookup(lexeme);
             if (duplicate != null && duplicate.Depth == depth)
@@ -76,12 +81,13 @@ namespace MiniJavaCompiler
             if (table[hashAddress] == null)
                 table[hashAddress] = new LinkedList<TableEntry>();
 
-            table[hashAddress].AddFirst(new TEntry
+            var value = table[hashAddress].AddFirst(new TEntry
             {
                 Lexeme = lexeme,
                 Token = token,
                 Depth = depth
             });
+            return value.Value as TEntry;
         }
 
         public TEntry Lookup<TEntry>(string lexeme) where TEntry: TableEntry
