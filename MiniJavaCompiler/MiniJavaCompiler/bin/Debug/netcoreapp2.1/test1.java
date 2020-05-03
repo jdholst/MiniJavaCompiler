@@ -3,14 +3,11 @@ class classone{
     return;
   }
   public int secondclass(){
-    int a,b,c,d;
+    int a,b,c;
 
-    write("Enter a number");
-    read(a);
+    a=5;
     b=10;
-    d=20;
-    c=d+a*b;
-    write("The answer is ");
+    c=a*b;
     writeln(c);
     return c;
   }

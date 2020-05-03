@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace MiniJavaCompiler
@@ -57,6 +58,11 @@ namespace MiniJavaCompiler
         public int SizeOfLocals { get; set; }
         public List<string> MethodNames { get; set; } = new List<string>();
         public List<string> VariableNames { get; set; } = new List<string>();
+
+        public bool HasMethod(string methodName)
+        {
+            return MethodNames.Any(name => name == methodName);
+        }
     }
 
     public class SymbolTable

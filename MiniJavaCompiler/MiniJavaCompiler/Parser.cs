@@ -321,7 +321,10 @@ namespace MiniJavaCompiler
 
         private static void SeqOfStatements(MethodEntry parentEntry)
         {
-            if (analyzer.Token == Symbol.idt)
+            if (analyzer.Token == Symbol.idt ||
+                analyzer.Token == Symbol.readt ||
+                analyzer.Token == Symbol.writet ||
+                analyzer.Token == Symbol.writelnt)
             {
                 Statement(parentEntry);
                 Match(Symbol.semit);
@@ -331,7 +334,10 @@ namespace MiniJavaCompiler
 
         private static void StatTail(MethodEntry parentEntry)
         {
-            if (analyzer.Token == Symbol.idt)
+            if (analyzer.Token == Symbol.idt ||
+                analyzer.Token == Symbol.readt ||
+                analyzer.Token == Symbol.writet ||
+                analyzer.Token == Symbol.writelnt)
             {
                 Statement(parentEntry);
                 Match(Symbol.semit);
@@ -348,6 +354,107 @@ namespace MiniJavaCompiler
             else
             {
                 IOStat(parentEntry);
+            }
+        }
+
+        private static void IOStat(MethodEntry parentEntry)
+        {
+            switch (analyzer.Token)
+            {
+                case Symbol.readt:
+                    InStat();
+                    break;
+                case Symbol.writet:
+                case Symbol.writelnt:
+                    OutStat();
+                    break;
+                default:
+                    throw new UnexpectedTokenException(analyzer.Token, Symbol.readt, Symbol.writet, Symbol.writelnt);
+            }
+        }
+
+        private static void InStat()
+        {
+            Match(Symbol.readt);
+            Match(Symbol.lparent);
+            IdList();
+            Match(Symbol.rparent);
+        }
+
+        private static void IdList()
+        {
+            Match(Symbol.idt);
+            IdListTail();
+        }
+
+        private static void IdListTail()
+        {
+            if (analyzer.Token == Symbol.commat)
+            {
+                Match(Symbol.commat);
+                Match(Symbol.idt);
+                IdListTail();
+            }
+        }
+
+        private static void OutStat()
+        {
+            if (analyzer.Token == Symbol.writelnt)
+            {
+                Match(Symbol.writelnt);
+            }
+            else if (analyzer.Token == Symbol.writet)
+            {
+                Match(Symbol.writet);
+            }
+            else
+            {
+                throw new UnexpectedTokenException(analyzer.Token, Symbol.writelnt, Symbol.writet);
+            }
+
+            Match(Symbol.lparent);
+            WriteList();
+            Match(Symbol.rparent);
+        }
+
+        private static void WriteList()
+        {
+            WriteToken(); 
+            WriteListTail();
+        }
+
+        private static void WriteListTail()
+        {
+            if (analyzer.Token == Symbol.commat)
+            {
+                Match(Symbol.commat);
+                WriteToken();
+                WriteListTail(); 
+            }
+        }
+
+        private static void WriteToken()
+        {
+            if (analyzer.Token == Symbol.idt)
+            {
+                Match(Symbol.idt);
+            }
+            else if (analyzer.Token == Symbol.numt)
+            {
+                Match(Symbol.numt);
+            }
+            else if (analyzer.Token == Symbol.quotet)
+            {
+                var literal = analyzer.Literal;
+                Match(Symbol.quotet);
+
+                // handle literal here
+
+                Match(Symbol.quotet);
+            }
+            else
+            {
+                throw new UnexpectedTokenException(analyzer.Token, Symbol.idt, Symbol.numt);
             }
         }
 
@@ -394,18 +501,13 @@ namespace MiniJavaCompiler
             }
         }
 
-        private static void IOStat(MethodEntry parentEntry)
-        {
-            // empty
-        }
-
         private static void MethodCall(MethodEntry parentEntry)
         {
-            ClassName();
+            var classEntry = ClassName();
             Match(Symbol.periodt);
 
-            var entry = symTable.Lookup<MethodEntry>(analyzer.Lexeme);
-            if (entry == null)
+            var methodName = analyzer.Lexeme;
+            if (!classEntry.HasMethod(methodName))
                 throw new UndeclaredTokenException(analyzer.Lexeme);
 
             Match(Symbol.idt);
@@ -418,7 +520,7 @@ namespace MiniJavaCompiler
                 Emit($"push {paramList[i]}");
             }
 
-            Emit($"call {entry}");
+            Emit($"call {methodName}");
         }
 
         private static List<string> Params(MethodEntry parentEntry)
@@ -468,9 +570,15 @@ namespace MiniJavaCompiler
             }
         }
 
-        private static void ClassName()
+        private static ClassEntry ClassName()
         {
+            var entry = symTable.Lookup<ClassEntry>(analyzer.Lexeme);
+            if (entry == null)
+                throw new UndeclaredTokenException(analyzer.Lexeme);
+
             Match(Symbol.idt);
+
+            return entry;
         }
 
         private static void Expr(ref TableEntry entryRef, MethodEntry parentEntry)
@@ -574,6 +682,7 @@ namespace MiniJavaCompiler
                     temp = NewTemp(Symbol.numt, 2);
                     entry = symTable.Lookup(analyzer.Lexeme);
                     Emit($"{GetBasePointerOffset(temp, parentEntry)} = -1 * {GetBasePointerOffset(entry, parentEntry)}");
+
                     Factor(ref entryRef, parentEntry, temp);
                     break;
                 case Symbol.nott:
