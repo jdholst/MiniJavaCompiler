@@ -15,14 +15,17 @@ namespace MiniJavaCompiler
         private static int currentOffset = 0;
         private static int currentDepth = 0;
         private static int currentTempNum = 1;
+        private static int currentStringNum = 0;
 
-        public static void Parse(string filePath)
+        public static (string, SymbolTable) Parse(string filePath)
         {
+            var tacFilePath = Path.GetFileNameWithoutExtension(filePath) + ".tac";
+            symTable = new SymbolTable(211);
+            analyzer = new LexicalAnalyzer(filePath);
+            tacFile = File.Create(tacFilePath);
+
             try
             {
-                symTable = new SymbolTable(211);
-                analyzer = new LexicalAnalyzer(filePath);
-                tacFile = File.Create(Path.GetFileNameWithoutExtension(filePath) + ".tac");
                 analyzer.GetNextToken(); // prime the parser
                 Prog();
             }
@@ -61,6 +64,8 @@ namespace MiniJavaCompiler
             {
                 tacFile.Close();
             }
+
+            return (tacFilePath, symTable);
         }
 
         private static void Prog()
@@ -271,6 +276,12 @@ namespace MiniJavaCompiler
                 Match(Symbol.returnt);
                 var retEntry = symTable.Lookup(analyzer.Lexeme);
                 Expr(ref retEntry, entry);
+
+                if (retEntry != null)
+                {
+                    Emit($"_AX = {GetBasePointerOffset(retEntry, entry)}");
+                }
+
                 Match(Symbol.semit);
                 Match(Symbol.endt);
 
@@ -362,50 +373,66 @@ namespace MiniJavaCompiler
             switch (analyzer.Token)
             {
                 case Symbol.readt:
-                    InStat();
+                    InStat(parentEntry);
                     break;
                 case Symbol.writet:
                 case Symbol.writelnt:
-                    OutStat();
+                    OutStat(parentEntry);
                     break;
                 default:
                     throw new UnexpectedTokenException(analyzer.Token, Symbol.readt, Symbol.writet, Symbol.writelnt);
             }
         }
 
-        private static void InStat()
+        private static void InStat(MethodEntry parentEntry)
         {
             Match(Symbol.readt);
             Match(Symbol.lparent);
-            IdList();
+            IdList(parentEntry);
             Match(Symbol.rparent);
         }
 
-        private static void IdList()
+        private static void IdList(MethodEntry parentEntry)
         {
+            var varEntry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+            if (varEntry == null)
+                throw new UndeclaredTokenException(analyzer.Lexeme);
+
             Match(Symbol.idt);
-            IdListTail();
+
+            Emit($"rdi {GetBasePointerOffset(varEntry, parentEntry)}");
+            IdListTail(parentEntry);
         }
 
-        private static void IdListTail()
+        private static void IdListTail(MethodEntry parentEntry)
         {
             if (analyzer.Token == Symbol.commat)
             {
                 Match(Symbol.commat);
+
+                var varEntry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+                if (varEntry == null)
+                    throw new UndeclaredTokenException(analyzer.Lexeme);
+
                 Match(Symbol.idt);
-                IdListTail();
+
+                Emit($"rdi {GetBasePointerOffset(varEntry, parentEntry)}");
+                IdListTail(parentEntry);
             }
         }
 
-        private static void OutStat()
+        private static void OutStat(MethodEntry parentEntry)
         {
+            var isWriteln = false;
             if (analyzer.Token == Symbol.writelnt)
             {
                 Match(Symbol.writelnt);
+                isWriteln = true;
             }
             else if (analyzer.Token == Symbol.writet)
             {
                 Match(Symbol.writet);
+
             }
             else
             {
@@ -413,48 +440,63 @@ namespace MiniJavaCompiler
             }
 
             Match(Symbol.lparent);
-            WriteList();
+            WriteList(parentEntry, isWriteln);
             Match(Symbol.rparent);
         }
 
-        private static void WriteList()
+        private static void WriteList(MethodEntry parentEntry, bool useWriteln)
         {
-            WriteToken(); 
-            WriteListTail();
+            WriteToken(parentEntry, useWriteln); 
+            WriteListTail(parentEntry, useWriteln);
         }
 
-        private static void WriteListTail()
+        private static void WriteListTail(MethodEntry parentEntry, bool useWriteln)
         {
             if (analyzer.Token == Symbol.commat)
             {
                 Match(Symbol.commat);
-                WriteToken();
-                WriteListTail(); 
+                WriteToken(parentEntry, useWriteln);
+                WriteListTail(parentEntry, useWriteln);
             }
         }
 
-        private static void WriteToken()
+        private static void WriteToken(MethodEntry parentEntry, bool useWriteln)
         {
             if (analyzer.Token == Symbol.idt)
             {
+                var varEntry = symTable.Lookup<VarEntry>(analyzer.Lexeme);
+                if (varEntry == null)
+                    throw new UndeclaredTokenException(analyzer.Lexeme);
+
                 Match(Symbol.idt);
+                Emit($"wri {GetBasePointerOffset(varEntry, parentEntry)}");
             }
             else if (analyzer.Token == Symbol.numt)
             {
+                var number = analyzer.Lexeme;
                 Match(Symbol.numt);
+                Emit($"wri {number}");
             }
             else if (analyzer.Token == Symbol.quotet)
             {
                 var literal = analyzer.Literal;
                 Match(Symbol.quotet);
 
-                // handle literal here
+                var litEntry = symTable.Insert<LiteralEntry>($"S{currentStringNum++}", Symbol.quotet, currentDepth);
+                litEntry.Literal = literal;
+
+                Emit($"wrs {litEntry}");
 
                 Match(Symbol.quotet);
             }
             else
             {
                 throw new UnexpectedTokenException(analyzer.Token, Symbol.idt, Symbol.numt);
+            }
+
+            if (useWriteln)
+            {
+                Emit("wrln");
             }
         }
 
@@ -482,7 +524,7 @@ namespace MiniJavaCompiler
 
                     if (assignEntry != null)
                     {
-                        Emit($"{assignEntry} = _AX");
+                        Emit($"{GetBasePointerOffset(assignEntry, parentEntry)} = _AX");
                     }
                 }
                 else if (entry is MethodEntry)
@@ -538,7 +580,10 @@ namespace MiniJavaCompiler
             }
             else if (analyzer.Token == Symbol.numt)
             {
-                paramList.Add(analyzer.Lexeme);
+                var entryTemp = NewTemp(Symbol.numt, 2);
+                var bpOffset = GetBasePointerOffset(entryTemp, parentEntry);
+                Emit($"{bpOffset} = {analyzer.Lexeme}");
+                paramList.Add(bpOffset);
                 Match(Symbol.numt);
                 ParamsTail(paramList, parentEntry);
             }
@@ -563,7 +608,10 @@ namespace MiniJavaCompiler
                 }
                 else if (analyzer.Token == Symbol.numt)
                 {
-                    paramList.Add(analyzer.Lexeme);
+                    var entryTemp = NewTemp(Symbol.numt, 2);
+                    var bpOffset = GetBasePointerOffset(entryTemp, parentEntry);
+                    Emit($"{bpOffset} = {analyzer.Lexeme}");
+                    paramList.Add(bpOffset);
                     Match(Symbol.numt);
                     ParamsTail(paramList, parentEntry);
                 }

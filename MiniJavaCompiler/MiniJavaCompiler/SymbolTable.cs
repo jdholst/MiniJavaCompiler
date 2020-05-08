@@ -65,14 +65,25 @@ namespace MiniJavaCompiler
         }
     }
 
+    public class LiteralEntry: TableEntry
+    {
+        public string Literal { get; set; }
+    }
+
     public class SymbolTable
     {
-        private readonly LinkedList<TableEntry>[] table;
+        private readonly LinkedList<TableEntry>[] activeTable;
+        private LinkedList<TableEntry>[] savedTable;
         private readonly int size;
+
+        public bool UseSavedTable { get; set; } = false;
 
         public SymbolTable(int size)
         {
-            table = new LinkedList<TableEntry>[size];
+            activeTable = new LinkedList<TableEntry>[size];
+
+            // retains all inserts made even when delete depth is used
+            savedTable = new LinkedList<TableEntry>[size];
             this.size = size;
         }
 
@@ -84,26 +95,33 @@ namespace MiniJavaCompiler
 
             var hashAddress = Hash(lexeme);
 
-            if (table[hashAddress] == null)
-                table[hashAddress] = new LinkedList<TableEntry>();
+            if (activeTable[hashAddress] == null)
+                activeTable[hashAddress] = new LinkedList<TableEntry>();
 
-            var value = table[hashAddress].AddFirst(new TEntry
+            if (savedTable[hashAddress] == null)
+                savedTable[hashAddress] = new LinkedList<TableEntry>();
+
+            var value = new TEntry
             {
                 Lexeme = lexeme,
                 Token = token,
                 Depth = depth
-            });
-            return value.Value as TEntry;
+            };
+
+            var node = activeTable[hashAddress].AddFirst(value);
+            savedTable[hashAddress].AddFirst(value);
+            return node.Value as TEntry;
         }
 
         public TEntry Lookup<TEntry>(string lexeme) where TEntry: TableEntry
         {
             var hashAddress = Hash(lexeme);
+            var table = UseSavedTable ? savedTable : activeTable;
             var node = table[hashAddress]?.First;
 
             while (node != null)
             {
-                if (node.Value.Lexeme == lexeme)
+                if (node.Value.Lexeme == lexeme && node.Value is TEntry)
                 {
                     return node.Value as TEntry;
                 }
@@ -116,20 +134,27 @@ namespace MiniJavaCompiler
 
         public TableEntry Lookup(string lexeme)
         {
-            return Lookup<TableEntry>(lexeme);
+            var varLookup = Lookup<VarEntry>(lexeme);
+            var classLookup = Lookup<ClassEntry>(lexeme);
+            var methodLookup = Lookup<MethodEntry>(lexeme);
+            var defaultLookup = Lookup<TableEntry>(lexeme);
+
+            // variable, class, and method names might conflict so there needs to be precedence:
+            return varLookup ?? classLookup ?? methodLookup ?? defaultLookup;
+
         }
 
         public void DeleteDepth(int depth)
         {
             for (int i = 0; i < size; i++)
             {
-                var node = table[i]?.First;
+                var node = activeTable[i]?.First;
 
                 while (node != null)
                 {
                     if (node.Value.Depth == depth)
                     {
-                        table[i].Remove(node);
+                        activeTable[i].Remove(node);
                     }
 
                     node = node.Next;
@@ -141,7 +166,7 @@ namespace MiniJavaCompiler
         {
             for (int i = 0; i < size; i++)
             {
-                var node = table[i]?.First;
+                var node = activeTable[i]?.First;
 
                 while (node != null)
                 {
