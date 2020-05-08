@@ -7,7 +7,12 @@ class firstclass{
 
     a=5;
     b=10;
-    c=a*b;
+    c=b-a;
+    write("Subtract: ");
+    writeln(c);
+    c=b/a;
+    write("Divide: ");
+    writeln(c);
     return c;
   }
 }

@@ -207,10 +207,26 @@ namespace MiniJavaCompiler
             EmitInstruction("mov", dest, "ax");
         }
 
+        private static void DivStat(string dest, string op1, string op2)
+        {
+            EmitInstruction("mov", "ax", op1);
+            EmitInstruction("cwd");
+            EmitInstruction("mov", "bx", op2);
+            EmitInstruction("idiv", "bx");
+            EmitInstruction("mov", dest, "ax");
+        }
+
         private static void AddStat(string dest, string op1, string op2)
         {
             EmitInstruction("mov", "ax", op1);
             EmitInstruction("add", "ax", op2);
+            EmitInstruction("mov", dest, "ax");
+        }
+
+        private static void SubStat(string dest, string op1, string op2)
+        {
+            EmitInstruction("mov", "ax", op1);
+            EmitInstruction("sub", "ax", op2);
             EmitInstruction("mov", dest, "ax");
         }
 
@@ -221,8 +237,14 @@ namespace MiniJavaCompiler
                 case "+":
                     AddStat(dest, operand1, operand2);
                     break;
+                case "-":
+                    SubStat(dest, operand1, operand2);
+                    break;
                 case "*":
                     MulStat(dest, operand1, operand2);
+                    break;
+                case "/":
+                    DivStat(dest, operand1, operand2);
                     break;
             }
         }
